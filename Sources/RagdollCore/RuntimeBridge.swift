@@ -68,11 +68,14 @@ public actor RuntimeBridge {
             while true {
                 let chunk = reader.availableData
                 if chunk.isEmpty { break }
-                pending.append(chunk)
-                while let index = pending.firstIndex(of: 10) {
-                    let line = pending.prefix(upTo: index); pending.removeSubrange(...index)
-                    await self?.receive(Data(line))
+                var start = chunk.startIndex
+                while let index = chunk[start...].firstIndex(of: 10) {
+                    pending.append(chunk[start..<index])
+                    await self?.receive(pending)
+                    pending = Data()
+                    start = chunk.index(after: index)
                 }
+                pending.append(chunk[start...])
             }
         }
         let errorReader = errors.fileHandleForReading
