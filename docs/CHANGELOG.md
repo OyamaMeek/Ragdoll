@@ -36,6 +36,6 @@
   - 全部 11 项 Swift 测试、release 打包、签名校验及助手自检通过。
   - 本机完整扫描 701 个 Codex 会话用时 15.6 秒，最大会话正文约 145 MB，无扫描警告；新版应用已运行，采样 CPU 约 2%。
 - **涉及文件**：`Sources/RagdollCore/RuntimeBridge.swift`、`Tests/RagdollCoreTests/RuntimeBridgeTests.swift`、`README.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`98348dd fix(runtime): prevent scans stalling on large messages`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
