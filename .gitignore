@@ -1,0 +1,12 @@
+.DS_Store
+references/
+.build/
+.cache/
+.agent/
+dist/
+node_modules/
+runtime/dist/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+*.log
