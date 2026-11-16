@@ -8,7 +8,7 @@
 - [x] ACP 协议、本地与 Registry、历史导入、动态配置及认证入口；官方 Claude ACP 安装协商、dsh ACP 真实对话恢复通过。
 - [x] Claude 导出包导入及格式边界；尚无用户官方导出包实测。
 - [x] debug/release 打包、签名及助手检查；实际启动索引至少267个本机Codex会话；独立静态审查问题已修正。
-- [进行中] 最终文档与提交推送。
+- [x] 功能提交 `f762527 feat(macos): add session analytics, git archive and ACP chat` 已推送至 `origin/main`；最终验证与提交记录随补记提交保存。
 
 ## 用户最新要求
 

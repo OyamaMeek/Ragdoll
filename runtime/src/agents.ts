@@ -8,8 +8,9 @@ import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import type { Query, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
-import * as acp from '@agentclientprotocol/sdk';
-import * as acp2 from '@agentclientprotocol/sdk/experimental/v2';
+import { client as clientV1, ndJsonStream as streamV1 } from '@agentclientprotocol/sdk';
+import type { Stream } from '@agentclientprotocol/sdk';
+import { client as clientV2, ndJsonStream as streamV2 } from '@agentclientprotocol/sdk/experimental/v2';
 import { RpcProcess, childEnvironment } from './rpc.ts';
 import { ClientTools } from './client-tools.ts';
 import type { Ask } from './client-tools.ts';
@@ -31,7 +32,7 @@ interface AcpPeer {
 interface AcpApp {
   onRequest(method: '*', handler: (ctx: { method: string; params: unknown; signal: AbortSignal }) => Promise<unknown>): unknown;
   onNotification(method: '*', handler: (ctx: { method: string; params: unknown }) => void): unknown;
-  connect(stream: acp.Stream): { close(error?: unknown): void; closed: Promise<void>; agent: {
+  connect(stream: Stream): { close(error?: unknown): void; closed: Promise<void>; agent: {
     request<Response = unknown, Params = unknown>(method: string, params?: Params, options?: { signal: AbortSignal }): Promise<Response>;
     notify(method: string, params?: unknown): Promise<void>;
   } };
@@ -64,8 +65,8 @@ async function openAcp(agent: AgentConfig, cwd: string, ask: Ask, emit: (method:
     const child = spawn(agent.command, agent.args, { cwd, env: childEnvironment(agent.env), stdio: 'pipe', detached: true });
     let stderr = '';
     child.stderr.on('data', data => { stderr = (stderr + String(data)).slice(-3000); });
-    const sdk = version === 2 ? acp2 : acp;
-    const app = sdk.client({ name: 'Ragdoll' }) as unknown as AcpApp;
+    const createClient = version === 2 ? clientV2 : clientV1;
+    const app = createClient({ name: 'Ragdoll' }) as unknown as AcpApp;
     app.onNotification('*', ctx => emit(ctx.method, object(ctx.params)));
     app.onRequest('*', async ctx => {
       const params = object(ctx.params);
@@ -81,7 +82,8 @@ async function openAcp(agent: AgentConfig, cwd: string, ask: Ask, emit: (method:
       }
       return tools.handle(ctx.method, params, ctx.signal);
     });
-    const stream = sdk.ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>);
+    const createStream = version === 2 ? streamV2 : streamV1;
+    const stream = createStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>);
     let mismatch: Error | undefined;
     const readable = stream.readable.pipeThrough(new TransformStream({ transform(message, controller) {
       const result = object(object(message).result);
