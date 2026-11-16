@@ -22,6 +22,6 @@
   - 产品代码尚未修改；具体实现设计待用户审阅。
   - 文档变更执行 `git diff --check`；未运行功能测试。
 - **涉及文件**：`docs/superpowers/specs/2026-11-16-v1-expansion-design.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交；提交后在后续记录中补记实际哈希。
+- **Git 提交**：`016967d docs(v1): define migration sync and background service scope`，已普通推送至 `origin/main`；本条由后续文档提交补记。新增功能尚未实施。
 
 ---
