@@ -121,6 +121,6 @@
   - 配置持久化测试先因字段丢失失败，修改后全部 24 项 Swift 测试通过，覆盖旧配置兼容、SQLite 重新打开后保持开启/关闭及预算金额保留。
   - release 打包、Apple Development 深度签名与助手自检通过，新版应用已启动；未执行截图、视觉核对或窗口交互测试。
 - **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Sources/Ragdoll/SettingsView.swift`、`Sources/RagdollCore/Models.swift`、`Tests/RagdollCoreTests/StoreArchiveTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`afc5245 feat(settings): toggle weekly budget visibility`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
