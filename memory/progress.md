@@ -1,5 +1,13 @@
 # 实施进度
 
+## system prompt 总折叠项（2026-11-17）
+
+- [x] 确认共用 ConversationView 当前逐条折叠；调用和测试均在该视图与 ConversationTests，没有项目测试技能目录。
+- [x] 记录连续分组、总折叠项与先分组后分页的范围和验证标准。
+- [x] 新增两项回归先因 conversationGroups 缺失编译失败；接入默认收起的 system prompt，保留内部逐条折叠，过滤工具后先分组再分页。
+- [x] 全部 46 项 Swift 测试通过（21.670 秒），release 构建通过；更新 dist/Ragdoll.preview.app，临时签名完整性及内置助手自检通过。原正式包签名完整性通过且可执行文件 SHA-256 不变。未验证实际点击或视觉效果，未运行 Claude 测试。
+- [ ] 提交并普通推送，核对远端 SHA 后补记实际哈希。
+
 ## 会话消息展示（2026-11-17）
 
 - [x] 确认日志和存储保留消息 role/kind；问题位于共用 ConversationView 的角色标记、工具渲染和分页。

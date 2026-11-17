@@ -46,3 +46,30 @@ import Testing
     }
     #expect(!Message(role: "assistant", text: "<INSTRUCTIONS>示例</INSTRUCTIONS>").isSystemPrompt)
 }
+
+@Test func conversationGroupsConsecutiveSystemPromptsInOrder() {
+    let messages = [
+        Message(id: "system", role: "system", text: "系统规则"),
+        Message(id: "tool", role: "tool", text: "隐藏的工具"),
+        Message(id: "developer", role: "developer", text: "开发者规则"),
+        Message(id: "context", role: "user", text: "<environment_context>环境</environment_context>"),
+        Message(id: "user", role: "user", text: "用户请求"),
+        Message(id: "later-system", role: "system", text: "后续规则"),
+        Message(id: "assistant", role: "assistant", text: "助手回复")
+    ]
+    let session = Session(id: "chat", source: "codex", title: "会话", messages: messages)
+    let groups = session.conversationGroups
+    #expect(groups.map(\.id) == ["system", "user", "later-system", "assistant"])
+    #expect(groups.map { $0.messages.map(\.id) } == [["system", "developer", "context"], ["user"], ["later-system"], ["assistant"]])
+    #expect(session.messages == messages)
+    #expect(Session(id: "empty", source: "codex", title: "空").conversationGroups.isEmpty)
+}
+
+@Test func conversationPaginationKeepsSystemPromptGroupsWhole() {
+    let prompts = (0..<105).map { Message(id: "system-\($0)", role: "system", text: "规则 \($0)") }
+    let users = (0..<100).map { Message(id: "user-\($0)", role: "user", text: "提问 \($0)") }
+    let session = Session(id: "chat", source: "codex", title: "会话", messages: prompts + users)
+    #expect(session.conversationGroups.count == 101)
+    #expect(session.conversationGroups.suffix(100).first?.id == "user-0")
+    #expect(session.conversationGroups.suffix(200).first?.messages == prompts)
+}

@@ -288,3 +288,17 @@
 - **Git 提交**：`29f1352 fix(chat): fold system prompts and hide tool calls`，已普通推送至 `origin/main`，远端 SHA 与本地一致；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 21:38] 添加 system prompt 总折叠项
+
+- **需求/问题描述**：
+  > 在会话详情中为系统提示词再增加一个名为 system prompt 的总折叠项。
+- **实际实现的功能与改动**：
+  - 连续的系统提示词归入默认收起的 `system prompt`，展开后保留各条系统提示词的独立折叠与全文选择；用户和助手消息顺序保留。
+  - 隐藏工具后先分组、再按 100 项分页，避免截断提示词组；原始消息与存储保留，历史会话和对话共用实现。
+  - 新增两项分组/分页回归先因缺少分组入口编译失败；实现后全部 46 项 Swift 测试通过（21.670 秒），release 构建及 Git diff 检查通过。
+  - 更新 `dist/Ragdoll.preview.app`，临时签名完整性和内置助手自检通过；原正式包可执行文件 SHA-256 不变且签名完整性通过。预览包不用于独立后台服务；未验证实际点击或视觉效果，未执行 Claude 测试。
+- **涉及文件**：`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ConversationTests.swift`、`docs/USAGE.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

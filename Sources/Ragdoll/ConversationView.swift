@@ -45,16 +45,16 @@ struct ConversationView: View {
                 Text("\(model.filtered.count) 个会话").font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(12)
             }.frame(minWidth: 245, idealWidth: 285, maxWidth: 340)
             if let session = model.selected {
-                let messages = session.conversationMessages
+                let groups = session.conversationGroups
                 VStack(spacing: 0) {
                     header(session)
                     Divider()
                     ScrollViewReader { proxy in
                         ScrollView {
                             LazyVStack(alignment: .leading, spacing: 28) {
-                                if messages.count > messageLimit { Button("加载更早的消息（剩余 \(messages.count - messageLimit) 条）") { messageLimit += 100 }.frame(maxWidth: .infinity) }
-                                ForEach(Array(messages.suffix(messageLimit))) { message in MessageView(message: message).id(message.id) }
-                                if messages.isEmpty { ContentUnavailableView("尚无消息", systemImage: "bubble.left", description: Text("恢复会话后可在下方输入消息。")) }
+                                if groups.count > messageLimit { Button("加载更早的消息（剩余 \(groups.count - messageLimit) 项）") { messageLimit += 100 }.frame(maxWidth: .infinity) }
+                                ForEach(Array(groups.suffix(messageLimit))) { group in ConversationGroupView(group: group) }
+                                if groups.isEmpty { ContentUnavailableView("尚无消息", systemImage: "bubble.left", description: Text("恢复会话后可在下方输入消息。")) }
                                 Color.clear.frame(height: 1).id("bottom")
                             }.padding(28).frame(maxWidth: 960).frame(maxWidth: .infinity)
                         }
@@ -121,6 +121,23 @@ struct ConversationView: View {
 
 extension Session {
     var conversationMessages: [Message] { messages.filter { $0.role != "tool" && $0.role != "function" && $0.kind != "tool" } }
+
+    var conversationGroups: [ConversationGroup] {
+        var groups: [ConversationGroup] = []
+        for message in conversationMessages {
+            if message.isSystemPrompt, let last = groups.indices.last, groups[last].messages.last?.isSystemPrompt == true {
+                groups[last].messages.append(message)
+            } else {
+                groups.append(ConversationGroup(id: message.id, messages: [message]))
+            }
+        }
+        return groups
+    }
+}
+
+struct ConversationGroup: Identifiable {
+    let id: String
+    var messages: [Message]
 }
 
 extension Message {
@@ -129,6 +146,23 @@ extension Message {
         guard role == "user", !text.contains("## My request:") else { return false }
         let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return ["# AGENTS.md instructions for ", "<environment_context>", "<permissions instructions>", "<INSTRUCTIONS>"].contains { prompt.hasPrefix($0) }
+    }
+}
+
+struct ConversationGroupView: View {
+    let group: ConversationGroup
+    var body: some View {
+        if group.messages.first?.isSystemPrompt == true {
+            DisclosureGroup {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(group.messages) { message in MessageView(message: message) }
+                }.padding(.top, 10)
+            } label: {
+                Label("system prompt", systemImage: "text.alignleft").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+            }.padding(12).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
+        } else {
+            ForEach(group.messages) { message in MessageView(message: message) }
+        }
     }
 }
 
