@@ -313,6 +313,6 @@
   - 刷新预览包登记并正常重启，新进程完成启动且图标数据与资源一致；清理隔离复现应用及其登记。
   - 最终源码全部 46 项 Swift 测试通过（20.269 秒），正式包与预览包深度签名完整性通过，Git diff 格式检查通过。未重新打包、运行 Claude 测试或截图；台前调度实际显示是否恢复尚未确认。
 - **涉及文件**：`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`efdd80e docs(macos): record Stage Manager icon diagnostics`，已普通推送至 origin/main，远端 SHA 与本地一致；本条由后续文档提交补记。
 
 ---

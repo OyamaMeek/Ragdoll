@@ -5,7 +5,7 @@
 - [x] 确认当前预览包的 ICNS 与源资源一致、LaunchServices 登记正确；运行中应用图标与包内资源一致。
 - [x] 隔离 AppKit 启动返回 256 像素快照；统一到 256 像素后，原有 applicationIconImage 与包内资源摘要完全一致，无需应用代码改动。最终源码全部 46 项 Swift 测试通过（20.269 秒）。
 - [x] 刷新预览包的 LaunchServices 登记并正常重启，旧进程已退出，新进程 64318 完成启动，图标摘要与资源一致；正式包和预览包深度签名完整性通过。台前调度实际显示未截图验证，尚不能确认用户所见异常已消失。
-- [ ] 追加开发记录，提交并普通推送，核对远端 SHA。
+- [x] `efdd80e docs(macos): record Stage Manager icon diagnostics` 已普通推送至 origin/main，远端 SHA 与本地一致；本条和开发记录由后续文档提交补记。
 
 ## system prompt 总折叠项（2026-11-17）
 
