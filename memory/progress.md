@@ -14,7 +14,9 @@
 - [x] 完整复查测试入口，将附件测试中的 dsh 二次迁移独立为受现有开关控制的子测试，保留云端附件、符号链接及缺失文件断言；本机默认与显式开启两种测试均通过。
 - [x] `b57b930 test(migration): isolate dsh attachment integration subtest` 已普通推送；云端运行 `44083771421` 的构建与 Node 检查通过。Swift 测试编译 48 秒完成，执行阶段长时间未结束，取消后日志确认多组 helper 存活。
 - [x] 本机显式串行运行全部 41 项 Swift 测试，20.038 秒通过；workflow 语法检查通过。
-- [ ] 提交、推送 CI 串行设置并完成最终云端构建。不创建版本标签。
+- [x] `2aa2f07 fix(release): serialize Swift tests on hosted runners` 已普通推送；云端运行 [44085972714](https://github.com/OyamaMeek/Ragdoll/actions/runs/44085972714) 整体成功。TypeScript、Node 21 项通过/8 项跳过、Swift 41 项通过（50.844 秒）、ZIP 解压签名/助手/SHA-256 校验和 artifact 上传通过。
+- [x] 核对 artifact `14328654532`，名称 Ragdoll-macos-arm64，78,091,772 字节且未过期；分支运行的 Publish release 按条件跳过，未创建标签或发布版本。正式标签发布尚未实测。
+- [x] 本机 dist/Ragdoll.app 已恢复为原证书签名版本并通过深度校验；CI 临时签名测试产物单独保存在被忽略的 .agent 目录。最终验证和提交哈希随本次文档补记保存。
 
 ## 启动时立即显示主界面（2026-11-17）
 

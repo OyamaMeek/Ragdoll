@@ -7,8 +7,9 @@
 - ZIP 解压后 GUI、helper 与内置 Node 可执行，深度签名验证和内置助手自检通过；SHA-256 校验通过。
 - 仅使用 GITHUB_TOKEN 的 contents: write 权限，发布验证远端标签存在；ZIP 与校验文件同时上传，不覆盖已有 Release。
 - 提交后普通推送，尽可能实际触发远端手动构建并核对结果。未触发的标签发布不得记为已实测；不运行 Claude 测试、视觉检查、证书导入或 Apple 公证。
-- CI 显式使用 `--no-parallel` 运行全部 Swift 测试；本机此命令 41 项测试在 20.038 秒内通过。云端默认并行执行挂起的运行已取消，结果不记为通过。
-- 本机已通过：actionlint、全部 workflow shell 语法、四种版本准备场景、TypeScript、默认 Node 测试 21 项（另 8 项跳过）、显式开启的真实 DeepSeek Harness 附件二次迁移与恢复 3 项（含父测试）、Swift 41 项、临时签名 release 打包，以及 ZIP 解压后的权限/架构/签名/内置助手和 SHA-256 校验。改用系统 grep 后，官方 Node 下载包的 SHA-256 校验通过。远端运行结果待推送后补记。
+- CI 显式使用 `--no-parallel` 运行全部 Swift 测试；本机 41 项测试在 20.038 秒内通过，云端 41 项在 50.844 秒内通过。
+- 本机已通过：actionlint、全部 workflow shell 语法、四种版本准备场景、TypeScript、默认 Node 测试 21 项（另 8 项跳过）、显式开启的真实 DeepSeek Harness 附件二次迁移与恢复 3 项（含父测试）、Swift 41 项、临时签名 release 打包，以及 ZIP 解压后的权限/架构/签名/内置助手和 SHA-256 校验。改用系统 grep 后，官方 Node 下载包的 SHA-256 校验通过。已有证书签名的 dist 应用已恢复并通过深度校验。
+- 云端 [44085972714](https://github.com/OyamaMeek/Ragdoll/actions/runs/44085972714) 整体 success，完整构建、TypeScript、Node 21 项/8 项跳过、Swift 41 项、ZIP 解压/签名/助手/SHA-256 及上传均通过。artifact 14328654532 实际大小 78,091,772 字节，未过期。分支验证按条件跳过发布步骤；标签创建 Release 尚未实测，未创建任何版本标签。
 
 ## 启动时立即显示主界面
 

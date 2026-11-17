@@ -227,7 +227,7 @@
 
 ---
 
-## [2026-11-17 20:09] GitHub Actions 自动编译发布
+## [2026-11-17 20:50] GitHub Actions 自动编译发布
 
 - **需求/问题描述**：
   > 设置一个 action 自动编译发布到 GitHub Release。
@@ -239,8 +239,9 @@
   - 需要本机 DeepSeek Harness 的迁移恢复与附件二次迁移测试沿用 RAGDOLL_MIGRATION_LIVE=dsh 开关，二次迁移独立为子测试，保留其他附件断言。云端默认跳过，本机显式开启后真实测试 3 项通过（含父测试）。
   - CI 单独安装固定版本 Codex 0.147.0，供迁移测试调用真实 app-server，不加入发布包。
   - CI 显式串行运行全部 Swift 测试，避免在 3 核 runner 同时启动多组后台 helper；本机串行命令 41 项测试在 20.038 秒内通过。
-  - 未运行 Claude 测试、截图或 Apple 公证。远端手动构建结果将在推送后补记；未创建版本标签或发布新版本。
+  - 云端 [手动构建 44085972714](https://github.com/OyamaMeek/Ragdoll/actions/runs/44085972714) 整体成功：TypeScript、Node 21 项通过/8 项跳过、Swift 41 项通过（50.844 秒），ZIP 解压后的签名/助手/SHA-256 校验和 artifact 上传通过。构建产物 14328654532 实际为 78,091,772 字节。
+  - 本机 dist 应用已恢复为原证书签名版本并通过深度校验。未运行 Claude 测试、截图或 Apple 公证；分支验证按条件跳过发布步骤，未创建版本标签，正式标签发布尚未实测。
 - **涉及文件**：`.github/workflows/release.yml`、`scripts/build.sh`、`runtime/test/migration.test.ts`、`README.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：`87fcafa chore(release): build macOS app and publish tagged releases`、`695e547 fix(build): use system grep for Node checksum verification`、`d6b1dbc test(migration): gate local dsh restore behind integration flag`、`127cf11 fix(release): install Codex for real migration tests`、`b57b930 test(migration): isolate dsh attachment integration subtest`，已普通推送至 `origin/main`；CI Swift 串行设置待提交。
+- **Git 提交**：`87fcafa chore(release): build macOS app and publish tagged releases`、`695e547 fix(build): use system grep for Node checksum verification`、`d6b1dbc test(migration): gate local dsh restore behind integration flag`、`127cf11 fix(release): install Codex for real migration tests`、`b57b930 test(migration): isolate dsh attachment integration subtest`、`2aa2f07 fix(release): serialize Swift tests on hosted runners`，均已普通推送至 `origin/main`；本条由后续文档提交补记验证结果和实际哈希。
 
 ---
