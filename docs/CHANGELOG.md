@@ -273,3 +273,18 @@
 - **Git 提交**：`0ed9a13 feat(macos): use Ragdoll cat as application icon`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 21:27] 系统提示词折叠与对话布局
+
+- **需求/问题描述**：
+  > 系统提示词默认折叠、点击展开，隐藏工具调用，对话界面参考用户提供的第三张图。
+- **实际实现的功能与改动**：
+  - system/developer 及独立注入上下文使用默认收起的系统提示词栏，展开保留完整可选择正文；包含实际用户请求的消息正常显示。
+  - 对话界面隐藏工具消息及运行事件入口，过滤后按 100 条分页；原始消息、索引、搜索、归档和执行记录保留。
+  - 用户消息改为右侧气泡和头像，助手使用左侧头像与无背景正文，时间靠近身份信息；输入框采用紧凑固定高度，保留附件、模型、发送和停止。
+  - 新增 3 项分类/分页回归先因缺失展示入口编译失败，实现后通过；全部 44 项 Swift 测试通过（24.872 秒）。release 编译、临时签名预览构建、深度签名完整性和内置助手自检通过，Git diff 格式检查通过。
+  - 开发证书签名返回 CSSMERR_TP_CERT_REVOKED；新版保存为 dist/Ragdoll.preview.app，原 dist/Ragdoll.app 已恢复，原可执行文件 SHA-256 不变且签名完整性校验通过。预览包不用于独立后台服务；未截图、验证实际点击或运行 Claude 测试。
+- **涉及文件**：`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ConversationTests.swift`、`docs/USAGE.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

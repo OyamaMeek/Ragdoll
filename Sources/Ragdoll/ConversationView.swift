@@ -9,7 +9,6 @@ struct ConversationView: View {
     @State private var prompt = ""
     @State private var messageLimit = 100
     @State private var sending = false
-    @State private var showEvents = false
     @State private var attachments: [URL] = []
     var body: some View {
         HSplitView {
@@ -46,25 +45,21 @@ struct ConversationView: View {
                 Text("\(model.filtered.count) 个会话").font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(12)
             }.frame(minWidth: 245, idealWidth: 285, maxWidth: 340)
             if let session = model.selected {
+                let messages = session.conversationMessages
                 VStack(spacing: 0) {
                     header(session)
                     Divider()
                     ScrollViewReader { proxy in
                         ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 22) {
-                                if session.messages.count > messageLimit { Button("加载更早的消息（剩余 \(session.messages.count - messageLimit) 条）") { messageLimit += 100 }.frame(maxWidth: .infinity) }
-                                ForEach(Array(session.messages.suffix(messageLimit))) { message in MessageView(message: message).id(message.id) }
-                                if session.messages.isEmpty { ContentUnavailableView("尚无消息", systemImage: "bubble.left", description: Text("恢复会话后可在下方输入消息。")) }
+                            LazyVStack(alignment: .leading, spacing: 28) {
+                                if messages.count > messageLimit { Button("加载更早的消息（剩余 \(messages.count - messageLimit) 条）") { messageLimit += 100 }.frame(maxWidth: .infinity) }
+                                ForEach(Array(messages.suffix(messageLimit))) { message in MessageView(message: message).id(message.id) }
+                                if messages.isEmpty { ContentUnavailableView("尚无消息", systemImage: "bubble.left", description: Text("恢复会话后可在下方输入消息。")) }
                                 Color.clear.frame(height: 1).id("bottom")
-                            }.padding(26).frame(maxWidth: 1000).frame(maxWidth: .infinity)
+                            }.padding(28).frame(maxWidth: 960).frame(maxWidth: .infinity)
                         }
                         .onChange(of: model.selected?.messages.last?.text) { _, _ in if sending { proxy.scrollTo("bottom", anchor: .bottom) } }
                         .onChange(of: model.selectedID) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-                    }
-                    if showEvents {
-                        DisclosureGroup("最近运行事件", isExpanded: .constant(true)) {
-                            ScrollView { Text((model.toolEvents[session.id] ?? []).suffix(15).map(\.text).joined(separator: "\n\n")).font(.system(size: 10, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(height: 160)
-                        }.padding(.horizontal, 20)
                     }
                     if !session.warnings.isEmpty { Text(session.warnings.joined(separator: " · ")).font(.caption2).foregroundStyle(.orange).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 8) }
                     if session.source == "desktop" {
@@ -93,7 +88,6 @@ struct ConversationView: View {
             }
             Spacer()
             Button("迁移…") { migrating = true }.disabled(model.running.contains(session.id) || !model.ready)
-            Button { showEvents.toggle() } label: { Image(systemName: "list.bullet.rectangle") }.help("显示运行事件")
             if session.source != "desktop" { Button("恢复会话") { Task { await model.resumeSelected() } }.disabled(model.running.contains(session.id)) }
         }.padding(16)
     }
@@ -104,8 +98,8 @@ struct ConversationView: View {
             }
             ZStack(alignment: .topLeading) {
                 if prompt.isEmpty { Text("输入消息，继续此会话…").foregroundStyle(.tertiary).padding(.top, 8).padding(.leading, 5).allowsHitTesting(false) }
-                TextEditor(text: $prompt).font(.body).scrollContentBackground(.hidden).frame(minHeight: 65, maxHeight: 150)
-            }
+                TextEditor(text: $prompt).font(.body).scrollContentBackground(.hidden)
+            }.frame(height: 72)
             HStack {
                 Button { attachments += model.chooseAttachments().filter { !attachments.contains($0) } } label: { Image(systemName: "paperclip") }.buttonStyle(.plain).help("添加附件，图片能力由 Agent 决定")
                 Image(systemName: "folder").foregroundStyle(.secondary)
@@ -121,7 +115,20 @@ struct ConversationView: View {
                     } label: { Image(systemName: "arrow.up").fontWeight(.semibold).frame(width: 22, height: 22) }.buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command).disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready)
                 }
             }
-        }.padding(14).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(.primary.opacity(0.08))).padding(18)
+        }.padding(14).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(.primary.opacity(0.08))).frame(maxWidth: 904).padding(.horizontal, 28).padding(.bottom, 20).padding(.top, 10).frame(maxWidth: .infinity)
+    }
+}
+
+extension Session {
+    var conversationMessages: [Message] { messages.filter { $0.role != "tool" && $0.role != "function" && $0.kind != "tool" } }
+}
+
+extension Message {
+    var isSystemPrompt: Bool {
+        if role == "system" || role == "developer" { return true }
+        guard role == "user", !text.contains("## My request:") else { return false }
+        let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["# AGENTS.md instructions for ", "<environment_context>", "<permissions instructions>", "<INSTRUCTIONS>"].contains { prompt.hasPrefix($0) }
     }
 }
 
@@ -129,17 +136,41 @@ struct MessageView: View {
     let message: Message
     @State private var expanded = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 7) {
-                Image(systemName: message.role == "user" ? "person.circle" : message.role == "tool" ? "terminal" : "sparkle").foregroundStyle(message.role == "user" ? .blue : .secondary)
-                Text(message.role == "user" ? "你" : message.role == "tool" ? "工具" : "助手").font(.caption.weight(.semibold))
-                Spacer()
-                Text(Date(timeIntervalSince1970: message.time / 1000), style: .time).font(.caption2).foregroundStyle(.tertiary)
+        if message.isSystemPrompt {
+            DisclosureGroup(isExpanded: $expanded) {
+                Text(message.text).font(.system(size: 12, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 10)
+            } label: {
+                Label("系统提示词", systemImage: "text.alignleft").font(.caption).foregroundStyle(.secondary)
+            }.padding(12).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
+        } else if message.role == "user" {
+            HStack(alignment: .top, spacing: 12) {
+                Spacer(minLength: 48)
+                VStack(alignment: .trailing, spacing: 6) {
+                    Text(message.text).font(.system(size: 13)).lineSpacing(5).textSelection(.enabled)
+                        .padding(.horizontal, 16).padding(.vertical, 12).background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+                    timestamp
+                }.frame(maxWidth: 620, alignment: .trailing)
+                avatar("person.fill", label: "你")
+            }.frame(maxWidth: .infinity, alignment: .trailing)
+        } else {
+            HStack(alignment: .top, spacing: 12) {
+                avatar("sparkles", label: "助手")
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 10) {
+                        Text("助手").font(.caption.weight(.semibold))
+                        timestamp
+                    }.frame(height: 28)
+                    Text(.init(message.text)).textSelection(.enabled).font(.system(size: 13)).lineSpacing(5).frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            if message.kind == "tool" {
-                DisclosureGroup(isExpanded: $expanded) { Text(message.text).font(.system(size: 11, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) } label: { Text(message.text.components(separatedBy: "\n").first ?? "工具输出").lineLimit(1).font(.caption) }
-            } else { Text(.init(message.text)).textSelection(.enabled).font(.system(size: 13)).lineSpacing(5).frame(maxWidth: .infinity, alignment: .leading) }
-        }.padding(message.role == "user" ? 16 : 0).background(message.role == "user" ? Color.blue.opacity(0.055) : .clear, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+    var timestamp: some View {
+        Text(Date(timeIntervalSince1970: message.time / 1000), style: .time).font(.caption2).foregroundStyle(.tertiary)
+    }
+    func avatar(_ symbol: String, label: String) -> some View {
+        Image(systemName: symbol).font(.system(size: 13)).foregroundStyle(.tint).frame(width: 28, height: 28)
+            .background(.tint.opacity(0.12), in: Circle()).accessibilityLabel(label)
     }
 }
 
