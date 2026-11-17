@@ -245,3 +245,17 @@
 - **Git 提交**：`87fcafa chore(release): build macOS app and publish tagged releases`、`695e547 fix(build): use system grep for Node checksum verification`、`d6b1dbc test(migration): gate local dsh restore behind integration flag`、`127cf11 fix(release): install Codex for real migration tests`、`b57b930 test(migration): isolate dsh attachment integration subtest`、`2aa2f07 fix(release): serialize Swift tests on hosted runners`，均已普通推送至 `origin/main`；本条由后续文档提交补记验证结果和实际哈希。
 
 ---
+
+## [2026-11-17 21:04] README 项目首页与文档整理
+
+- **需求/问题描述**：
+  > 参照用户提供的 GitHub README 截图，改善项目介绍的排版与阅读体验。
+- **实际实现的功能与改动**：
+  - 添加 README 专用猫咪 SVG、居中标题、简介、平台/技术/构建徽章与导航，使用表格展示功能和支持来源。
+  - 优先介绍功能、源码安装与首次使用；详细操作及开发/签名/测试/发布说明分别整理到使用指南和开发文档。
+  - 修正年度热力图与可选预算说明；通过 GitHub API 确认暂无正式 Release，保留签名、隐私和未验证能力的限制。
+  - SVG XML、9 个引用文件及 3 个章节目标、Git diff 格式检查通过；7 个外部入口与徽章均返回 HTTP 200。仅文档与标识资源变更，未执行应用测试、构建或截图/视觉检查。
+- **涉及文件**：`README.md`、`docs/assets/ragdoll.svg`、`docs/USAGE.md`、`docs/DEVELOPMENT.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

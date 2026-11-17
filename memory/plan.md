@@ -1,5 +1,12 @@
 # Ragdoll 实施计划
 
+## README 项目首页
+
+- 按用户提供的参考图，采用居中猫咪标识、项目名、平台/技术/CI 徽章、简短介绍、导航与功能分类表格，保留中文。
+- README 优先展示用途、功能、安装与首次使用；详细使用说明和开发/验证/发布命令分别放入 `docs/USAGE.md` 与 `docs/DEVELOPMENT.md`，保留数据安全和验证限制。
+- GitHub API 已确认暂无 Release；不声称已有下载版本，不添加未确定的许可证或翻译版本。源码与打包脚本确认年度热力图、可选预算、内置 Node 和签名要求。
+- 范围仅为 README、文档、README 专用 SVG 和任务记录；应用、调用方、测试、fixtures、配置与导出均无需改动。检查本地链接、SVG、格式及远端链接后原子提交并普通推送，不截图或运行应用测试。
+
 ## GitHub Actions 自动发布
 
 - 推送 `v主版本.次版本.修订版本` 标签后，在 macOS 15 ARM64 runner 复用 `scripts/build.sh` 编译 `.app`，写入标签版本与构建编号，检查后上传 ZIP 和 SHA-256 到 GitHub Release。

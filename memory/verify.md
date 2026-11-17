@@ -1,5 +1,13 @@
 # 验证标准
 
+## README 项目首页
+
+- 具有居中标识、标题、徽章、导航、功能分类表格、安装和首次使用入口；仅描述已有功能，年度热力图与预算默认状态符合源码。
+- 无正式 Release 时明确提供源码构建流程；保留 macOS 15+/Apple Silicon、未公证、后台有效签名、Claude 验证状态和归档隐私限制。
+- 使用说明及开发/发布文档承接原 README 的有效细节；本地文件和章节锚点均可解析，SVG XML 合法，`git diff --check` 通过，外部入口与徽章可访问。
+- 仅文档与资源变化，不运行应用测试、构建或截图；提交后普通推送并核对远端分支 SHA。
+- 已执行：`xmllint --noout docs/assets/ragdoll.svg`、9 个引用文件/3 个章节目标断言和 `git diff --check` 全部通过；4 个徽章及 workflow、Releases、Issues 共 7 个外部 URL 均返回 HTTP 200。未验证 GitHub 页面实际渲染或应用行为。
+
 ## GitHub Actions 自动发布
 
 - `vX.Y.Z` 标签触发构建与 Release；普通分支推送不发布，手动分支运行仅上传 artifact；版本写入打包的 Info.plist。

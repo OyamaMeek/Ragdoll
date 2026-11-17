@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Ragdoll 猫咪标识</title>
+  <rect width="256" height="256" rx="56" fill="#f3efe7"/>
+  <path d="M58 116V58l48 28a91 91 0 0 1 44 0l48-28v58c13 17 18 35 14 54-7 35-42 56-84 56s-77-21-84-56c-4-19 1-37 14-54Z" fill="#54515b"/>
+  <path d="m70 78 25 15-25 14Zm116 0-25 15 25 14Z" fill="#c5b7ac"/>
+  <path d="M128 101c-5 30-18 52-37 71 4 25 18 41 37 41s33-16 37-41c-19-19-32-41-37-71Z" fill="#f3efe7"/>
+  <ellipse cx="91" cy="148" rx="13" ry="10" fill="#91c9e8"/>
+  <ellipse cx="165" cy="148" rx="13" ry="10" fill="#91c9e8"/>
+  <path d="m119 175 9 8 9-8Z" fill="#a47d7a"/>
+  <path d="M128 183v7m0 0c-4 6-11 7-16 3m16-3c4 6 11 7 16 3" fill="none" stroke="#54515b" stroke-width="4" stroke-linecap="round"/>
+</svg>
