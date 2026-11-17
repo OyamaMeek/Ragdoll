@@ -7,6 +7,7 @@ struct DashboardView: View {
     var showSessions: () -> Void
     @State private var budget = ""
     @State private var heatmapYear = Calendar.current.component(.year, from: Date())
+    @State private var hoveredDay: Date?
     var body: some View {
         let stats = model.dashboard
         ScrollView {
@@ -59,7 +60,7 @@ struct DashboardView: View {
                                 Spacer()
                                 Text(heatmapYear == Calendar.current.component(.year, from: Date()) ? "过去一年" : "\(String(heatmapYear)) 年").font(.caption).foregroundStyle(.secondary)
                             }
-                            heatmap(stats)
+                            heatmap(stats).zIndex(1)
                             HStack {
                                 Text("按本地日期统计 · 点击方格查看当天会话").font(.caption).foregroundStyle(.secondary)
                                 Spacer()
@@ -124,6 +125,10 @@ struct DashboardView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear { budget = model.settings.weeklyBudget.map { String($0) } ?? ""; model.heatmapFilter = nil; model.query = ""; do { try model.reload() } catch { model.error = error.localizedDescription } }
+        .onChange(of: heatmapYear) { hoveredDay = nil }
+        .onChange(of: model.project) { hoveredDay = nil }
+        .onChange(of: model.source) { hoveredDay = nil }
+        .onDisappear { hoveredDay = nil }
         .navigationTitle("首页")
     }
     func saveBudget() {
@@ -163,7 +168,11 @@ struct DashboardView: View {
                                     Button { model.heatmapFilter = date; showSessions() } label: {
                                         RoundedRectangle(cornerRadius: 3).fill(activityColor(level)).frame(width: size, height: size)
                                     }.buttonStyle(.plain)
-                                        .help("\(date.formatted(date: .complete, time: .omitted)) · \(value.formatted()) Token")
+                                        .onHover { hovering in
+                                            if hovering { hoveredDay = date }
+                                            else if hoveredDay == date { hoveredDay = nil }
+                                        }
+                                        .anchorPreference(key: ActivityCellAnchor.self, value: .bounds) { hoveredDay == date ? $0 : nil }
                                         .accessibilityLabel("\(date.formatted(date: .complete, time: .omitted))，\(value) Token，查看当天会话")
                                 } else {
                                     Color.clear.frame(width: size, height: size).accessibilityHidden(true)
@@ -173,6 +182,17 @@ struct DashboardView: View {
                     }
                 }
             }
+            .onScrollPhaseChange { _, _ in hoveredDay = nil }
+            .overlayPreferenceValue(ActivityCellAnchor.self) { anchor in
+                GeometryReader { proxy in
+                    if let anchor, let date = hoveredDay {
+                        let cell = proxy[anchor]
+                        ActivityTooltip(date: date, tokens: stats.dailyTokens[date, default: 0])
+                            .fixedSize()
+                            .offset(x: min(max(cell.midX - 100, 0), max(proxy.size.width - 200, 0)), y: cell.maxY + 8)
+                    }
+                }.allowsHitTesting(false)
+            }
         }.frame(height: 180)
     }
     func activityYears(_ stats: Dashboard) -> [Int] {
@@ -180,9 +200,32 @@ struct DashboardView: View {
     }
     func activityColor(_ level: Int) -> Color {
         if level == 0 { return Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.05) }
-        let dark = [Color(red: 0.01, green: 0.22, blue: 0.09), Color(red: 0.06, green: 0.43, blue: 0.18), Color(red: 0.15, green: 0.63, blue: 0.26), Color(red: 0.22, green: 0.83, blue: 0.33)]
-        let light = [Color(red: 0.61, green: 0.91, blue: 0.66), Color(red: 0.25, green: 0.77, blue: 0.39), Color(red: 0.19, green: 0.63, blue: 0.31), Color(red: 0.13, green: 0.43, blue: 0.22)]
-        return (colorScheme == .dark ? dark : light)[level - 1]
+        let greens = [Color(red: 33 / 255, green: 110 / 255, blue: 57 / 255), Color(red: 56 / 255, green: 150 / 255, blue: 75 / 255), Color(red: 101 / 255, green: 190 / 255, blue: 103 / 255), Color(red: 155 / 255, green: 233 / 255, blue: 168 / 255)]
+        return greens[level - 1]
     }
     func empty(_ title: String, icon: String) -> some View { HStack { Image(systemName: icon); Text(title) }.foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 100) }
+}
+
+private struct ActivityCellAnchor: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? { nil }
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = nextValue() ?? value }
+}
+
+struct ActivityTooltip: View {
+    let date: Date
+    let tokens: Int
+    var dateText: String { date.formatted(.dateTime.month().day().locale(Locale(identifier: "zh_CN"))) }
+    var tokenText: String { "\(tokens.formatted(.number.notation(.compactName).locale(Locale(identifier: "zh_CN")))) 个 Token" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(dateText)
+            Text(tokenText).monospacedDigit()
+        }
+        .font(.callout).frame(width: 176, alignment: .leading).padding(12)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.primary.opacity(0.12)))
+        .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
 }

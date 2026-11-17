@@ -10,6 +10,7 @@ let package = Package(
         .target(name: "RagdollCore", dependencies: [.product(name: "GRDB", package: "GRDB.swift")]),
         .executableTarget(name: "Ragdoll", dependencies: ["RagdollCore"]),
         .executableTarget(name: "RagdollService", dependencies: ["RagdollCore"]),
-        .testTarget(name: "RagdollCoreTests", dependencies: ["RagdollCore"])
+        .testTarget(name: "RagdollCoreTests", dependencies: ["RagdollCore"]),
+        .testTarget(name: "RagdollTests", dependencies: ["Ragdoll"])
     ]
 )

@@ -124,3 +124,17 @@
 - **Git 提交**：`afc5245 feat(settings): toggle weekly budget visibility`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 13:13] 热力图绿色梯度与悬停用量
+
+- **需求/问题描述**：
+  > 调浅热力图最深绿色，Token 越多绿色越浅；鼠标悬停显示当天 Token 量，参照用户提供的浮层样式。
+- **实际实现的功能与改动**：
+  - 浅色和深色主题统一使用 `#216e39`、`#38964b`、`#65be67`、`#9be9a8` 四档绿色，图例同步；零用量保持中性色。
+  - 悬停方格显示日期与中文紧凑格式 Token，例如“10月29日 / 1.7亿 个 Token”；浮层忽略鼠标事件，保留点击筛选和可访问性。
+  - 浮层位置跟随方格并限制左右边界；切换年份、项目、来源、横向滚动或离开首页时清除悬停。
+  - 色板回归先失败，修改后全部 26 项 Swift 测试通过；release 打包、Apple Development 深度签名与助手自检通过，新版应用已启动。未执行截图、实际鼠标悬停或边缘定位验证。
+- **涉及文件**：`Package.swift`、`Sources/Ragdoll/DashboardView.swift`、`Tests/RagdollTests/DashboardTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---
