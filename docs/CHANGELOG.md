@@ -270,6 +270,6 @@
   - 实际 release 构建、有效 Apple Development 签名、深度签名和内置助手自检通过；Bash、plist 及 Git diff 检查通过，LaunchServices 注册新版元数据成功。
   - 未修改应用业务逻辑，未执行应用业务测试、Claude 测试或截图/视觉检查；Finder/Dock 实际显示未验证。
 - **涉及文件**：`packaging/Ragdoll.icns`、`packaging/Info.plist`、`scripts/build.sh`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`0ed9a13 feat(macos): use Ragdoll cat as application icon`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
