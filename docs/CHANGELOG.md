@@ -299,6 +299,6 @@
   - 新增两项分组/分页回归先因缺少分组入口编译失败；实现后全部 46 项 Swift 测试通过（21.670 秒），release 构建及 Git diff 检查通过。
   - 更新 `dist/Ragdoll.preview.app`，临时签名完整性和内置助手自检通过；原正式包可执行文件 SHA-256 不变且签名完整性通过。预览包不用于独立后台服务；未验证实际点击或视觉效果，未执行 Claude 测试。
 - **涉及文件**：`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ConversationTests.swift`、`docs/USAGE.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`c40424f feat(chat): group system prompts under a parent disclosure`，已普通推送至 `origin/main`，远端 SHA 与本地一致；本条由后续文档提交补记。
 
 ---
