@@ -302,3 +302,17 @@
 - **Git 提交**：`c40424f feat(chat): group system prompts under a parent disclosure`，已普通推送至 `origin/main`，远端 SHA 与本地一致；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 21:52] 核查台前调度图标并刷新应用登记
+
+- **需求/问题描述**：
+  > 台前调度中显示默认图标，没有显示 Ragdoll 猫咪图标。
+- **实际实现的功能与改动**：
+  - 核查当前预览包的 Info.plist、ICNS 和 LaunchServices 登记，均已包含猫咪图标；系统返回的运行中应用图标与资源一致。
+  - 隔离 AppKit 应用正常启动后返回 256 像素快照，在相同尺寸下与包内图标摘要一致；未发现需要修改应用代码的图标加载缺陷。
+  - 刷新预览包登记并正常重启，新进程完成启动且图标数据与资源一致；清理隔离复现应用及其登记。
+  - 最终源码全部 46 项 Swift 测试通过（20.269 秒），正式包与预览包深度签名完整性通过，Git diff 格式检查通过。未重新打包、运行 Claude 测试或截图；台前调度实际显示是否恢复尚未确认。
+- **涉及文件**：`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---
