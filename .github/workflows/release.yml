@@ -42,6 +42,11 @@ jobs:
           fi
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" packaging/Info.plist
 
+      - name: Install Codex for migration tests
+        run: |
+          npm install --global @openai/codex@0.147.0 --ignore-scripts
+          codex --version
+
       - name: Build application
         run: bash scripts/build.sh
 

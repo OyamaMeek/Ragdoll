@@ -237,8 +237,9 @@
   - README 和发布说明明确 macOS 15+、Apple Silicon、临时签名、未公证及独立后台服务的有效签名要求。Node 校验使用系统 grep，避免依赖 CI 未安装的 rg。
   - 本机 actionlint、workflow shell 语法与四种版本准备场景通过；TypeScript 检查通过，默认 Node 21 项通过/7 项跳过，Swift 41 项通过；release 打包、ZIP 解压后的权限/架构/深度签名/内置助手及 SHA-256 校验通过。改用 grep 后官方 Node 下载包校验通过。
   - 需要本机 DeepSeek Harness 的迁移恢复测试沿用 RAGDOLL_MIGRATION_LIVE=dsh 开关；云端默认跳过，本机显式开启后真实测试 1 项通过。
+  - CI 单独安装固定版本 Codex 0.147.0，供迁移测试调用真实 app-server，不加入发布包。
   - 未运行 Claude 测试、截图或 Apple 公证。远端手动构建结果将在推送后补记；未创建版本标签或发布新版本。
 - **涉及文件**：`.github/workflows/release.yml`、`scripts/build.sh`、`runtime/test/migration.test.ts`、`README.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：`87fcafa chore(release): build macOS app and publish tagged releases`、`695e547 fix(build): use system grep for Node checksum verification`，已普通推送至 `origin/main`；测试环境约束待提交。
+- **Git 提交**：`87fcafa chore(release): build macOS app and publish tagged releases`、`695e547 fix(build): use system grep for Node checksum verification`、`d6b1dbc test(migration): gate local dsh restore behind integration flag`，已普通推送至 `origin/main`；CI 测试工具安装待提交。
 
 ---

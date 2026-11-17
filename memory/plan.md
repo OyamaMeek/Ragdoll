@@ -7,7 +7,7 @@
 - 范围：新增 `.github/workflows/release.yml`、README 发布说明及任务记录；`scripts/build.sh` 使用系统自带 grep 筛选官方 Node 校验值，避免依赖 runner 未安装的 rg。构建调用方、运行时、测试、fixtures、导出接口及应用配置格式保持原样。
 - 运行 TypeScript 检查、允许的 Node 测试、Swift 测试、release 打包，解压后验证可执行权限、签名及内置助手。检查 workflow 语法，提交并普通推送；尽可能实际手动触发远端构建。不创建版本标签或立即发布新版本。
 - CI 沿用临时签名、未公证；明确提示 Gatekeeper 与独立后台服务的有效签名限制。
-- 需要本机 DeepSeek Harness 的迁移恢复测试沿用已有 `RAGDOLL_MIGRATION_LIVE=dsh` 开关；云端无该应用时跳过，本机显式开启并执行真实测试。不安装第三方客户端或伪造成功结果。
+- 迁移测试调用真实 Codex app-server，CI 单独安装固定版本 `@openai/codex@0.147.0`，不加入发布包。需要本机 DeepSeek Harness 的恢复测试沿用已有 `RAGDOLL_MIGRATION_LIVE=dsh` 开关；云端无该应用时跳过，本机显式开启并执行真实测试。
 
 ## 启动时立即显示主界面
 
