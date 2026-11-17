@@ -107,6 +107,6 @@
   - 历史日期回归先因旧七日统计遗漏数据失败；修复后全部 23 项 Swift 测试通过，覆盖 DST、跨年、闰日、空数据、未来日期和用量去重。
   - release 打包、Apple Development 深度签名和助手自检通过，新版应用已重新启动。未执行截图、视觉核对或窗口交互测试。
 - **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/RagdollCore/Analytics.swift`、`Tests/RagdollCoreTests/AnalyticsTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`557d871 feat(dashboard): show annual contribution heatmap`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
