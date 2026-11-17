@@ -285,6 +285,6 @@
   - 新增 3 项分类/分页回归先因缺失展示入口编译失败，实现后通过；全部 44 项 Swift 测试通过（24.872 秒）。release 编译、临时签名预览构建、深度签名完整性和内置助手自检通过，Git diff 格式检查通过。
   - 开发证书签名返回 CSSMERR_TP_CERT_REVOKED；新版保存为 dist/Ragdoll.preview.app，原 dist/Ragdoll.app 已恢复，原可执行文件 SHA-256 不变且签名完整性校验通过。预览包不用于独立后台服务；未截图、验证实际点击或运行 Claude 测试。
 - **涉及文件**：`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ConversationTests.swift`、`docs/USAGE.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`29f1352 fix(chat): fold system prompts and hide tool calls`，已普通推送至 `origin/main`，远端 SHA 与本地一致；本条由后续文档提交补记。
 
 ---
