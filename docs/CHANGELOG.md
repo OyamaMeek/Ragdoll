@@ -223,6 +223,6 @@
   - 两项回归先出现 11 个失败断言，修复后全部 41 项 Swift 测试通过，覆盖午夜、跨年周、夏令时及更早日期。
   - release 打包、Apple Development 深度签名及助手自检通过，已启动新版并确认进程；未新增截图或视觉检查。
 - **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Tests/RagdollTests/DashboardTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`0fe88f7 fix(dashboard): show calendar labels for session dates`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---

@@ -37,7 +37,7 @@
 - [x] 两项日期标签回归先出现 11 个失败断言；实现今天、昨日、本周、本月及更早具体日期，恢复“全部”入口与未按日期筛选的列表。
 - [x] 全部 41 项 Swift 测试通过；release 打包、Apple Development 深度签名及助手自检通过。未新增截图或视觉检查。
 - [x] 已启动新版并确认进程。
-- [ ] 提交并普通推送，补记实际提交哈希。
+- [x] 功能提交 `0fe88f7 fix(dashboard): show calendar labels for session dates` 已普通推送至 `origin/main`；实际哈希随本次开发记录补记保存。
 
 ## Codex 会话小标题（2026-11-17）
 
