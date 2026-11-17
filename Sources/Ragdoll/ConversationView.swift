@@ -5,6 +5,7 @@ struct ConversationView: View {
     @EnvironmentObject var model: AppModel
     var canCreate: Bool
     @State private var newChat = false
+    @State private var migrating = false
     @State private var prompt = ""
     @State private var messageLimit = 100
     @State private var sending = false
@@ -82,6 +83,7 @@ struct ConversationView: View {
         }
         .navigationTitle(canCreate ? "对话" : "会话")
         .sheet(isPresented: $newChat) { NewChatView().environmentObject(model) }
+        .sheet(isPresented: $migrating) { if let session = model.selected { MigrationView(session: session).environmentObject(model) } }
     }
     func header(_ session: Session) -> some View {
         HStack {
@@ -90,6 +92,7 @@ struct ConversationView: View {
                 Text("\(sourceName(session.source)) / \(session.project.isEmpty ? "未关联项目" : session.project)").font(.caption).foregroundStyle(.secondary).lineLimit(1).textSelection(.enabled)
             }
             Spacer()
+            Button("迁移…") { migrating = true }.disabled(model.running.contains(session.id) || !model.ready)
             Button { showEvents.toggle() } label: { Image(systemName: "list.bullet.rectangle") }.help("显示运行事件")
             if session.source != "desktop" { Button("恢复会话") { Task { await model.resumeSelected() } }.disabled(model.running.contains(session.id)) }
         }.padding(16)

@@ -9,12 +9,12 @@
 - Claude 普通聊天导入官方导出包，续聊打开原聊天。
 - 自动归档原始记录、Markdown、元数据及可取得的附件；30 秒防抖、最长 5 分钟，本地 Git 提交；新增自动推送到指定远端，失败保留本地归档并支持重试。
 - 第一版加入跨工具迁移：生成目标工具能直接打开完整旧会话的原生历史。
-- 第一版加入独立后台常驻服务；具体实现方案待审阅。
+- 第一版加入独立后台常驻服务；用户已授权按实施计划执行。
 - 缺失用量/价格显示未知；凭据不进入归档；源日志只读，用户主动对话通过原生工具持久化。
 
 ## 结构
 
-- Swift Package：RagdollCore（模型、GRDB、统计、归档）、Ragdoll（SwiftUI 入口及交互）。
+- Swift Package：RagdollCore（模型、GRDB、统计、归档、推送与服务循环）、Ragdoll（SwiftUI 入口及交互）、RagdollService（用户级后台 helper）。
 - runtime：TypeScript（日志、Codex/Claude/dsh、ACP、Registry）；NDJSON 子进程通信。
 - scripts：构建、打包和验证。通过 Swift Package 构建原生 .app，避免依赖额外工程生成器。
 - Tests、runtime/test：真实格式样本和真实 Git 仓库验证。
@@ -36,4 +36,6 @@
 
 ## 第一版新增范围
 
-已完成部分保持现有状态；新增三项尚未实施。设计见 `docs/superpowers/specs/2026-11-16-v1-expansion-design.md`，待用户审阅后编写详细实施步骤。核心约束是原生历史完整性、单向普通推送以及后台与 GUI 的归档所有权协调。
+用户“继续”授权实施，设计见 `docs/superpowers/specs/2026-11-16-v1-expansion-design.md`，实施步骤见 `docs/superpowers/plans/2026-11-17-v1-expansion.md`。核心约束是原生历史完整性、单向普通推送以及后台与 GUI 的归档所有权协调。使用原子请求/状态文件传递有限操作，状态延迟最多两秒；共享索引变更通过 SQLite data_version 触发后台归档。
+
+迁移仅识别已知用户附件和可信清单，项目外引用需要选择器授权；普通消息去除协议镜像，专属记录转为全文，原始审计文件另存。Git 拒绝多 push URL，固定本次唯一目标；保留配置 home 的索引身份。系统后台要求有效 Apple 签名及目录访问授权；当前外置 SSD 的隔离系统全流程验证受 TCC 限制。

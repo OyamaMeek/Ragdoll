@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import RagdollCore
+import ServiceManagement
 
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
@@ -9,6 +10,10 @@ struct SettingsView: View {
     @State private var showRegistry = false
     @State private var historyAgent: AgentConfig?
     @State private var prices = ""
+    @State private var remoteName = "origin"
+    @State private var remoteBranch = "main"
+    @State private var remotePreview = ""
+    @State private var checkedRemote: ArchiveRemote?
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("设置").font(.largeTitle.bold())
@@ -29,7 +34,12 @@ struct SettingsView: View {
         .sheet(item: $editor) { agent in AgentEditor(agent: agent).environmentObject(model) }
         .sheet(isPresented: $showRegistry) { RegistryView().environmentObject(model) }
         .sheet(item: $historyAgent) { agent in NativeHistoryView(agent: agent).environmentObject(model) }
-        .onAppear { prices = (try? JSONValue.encode(model.settings.prices).text) ?? "{}" }
+        .onAppear {
+            prices = (try? JSONValue.encode(model.settings.prices).text) ?? "{}"
+            remoteName = model.settings.archiveRemote?.remote ?? "origin"; remoteBranch = model.settings.archiveRemote?.branch ?? "main"
+            model.pollBackground()
+        }
+        .onChange(of: model.settings.archivePath) { _, _ in checkedRemote = nil; remotePreview = "" }
     }
     var sources: some View {
         Group {
@@ -102,7 +112,7 @@ struct SettingsView: View {
             Card {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Git 自动归档").font(.headline)
-                    Text("保存原始记录、Markdown 和元数据；合并变更后创建本地提交。不会推送到远端。").foregroundStyle(.secondary)
+                    Text("保存原始记录、Markdown 和元数据；合并变更后创建本地提交，可开启指定远端的自动推送。").foregroundStyle(.secondary)
                     HStack { Text(model.settings.archivePath.isEmpty ? "尚未选择目录" : model.settings.archivePath).font(.system(.caption, design: .monospaced)).textSelection(.enabled); Spacer(); Button("选择专用仓库…") { model.chooseArchive() } }
                     Text(model.archiveStatus).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     HStack {
@@ -112,6 +122,40 @@ struct SettingsView: View {
                         Button("立即归档") { Task { await model.archiveNow() } }.buttonStyle(.borderedProminent).disabled(model.archiving || model.settings.archivePath.isEmpty)
                     }
                     Text("自动保存采用 30 秒防抖，最长合并 5 分钟。源文件删除后保留已有归档；手工修改的归档文件会阻止自动覆盖。Git 需要已配置提交者姓名与邮箱。").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("远端归档推送").font(.headline)
+                    Text("推送包含所选 Git 分支的全部历史及对话内容，请使用专用归档仓库。认证沿用系统 Git；失败保留本地提交并自动重试，远端分歧不会强制覆盖。").font(.caption).foregroundStyle(.secondary)
+                    HStack { TextField("远端名称", text: $remoteName); TextField("目标分支", text: $remoteBranch) }.textFieldStyle(.roundedBorder)
+                    if !remotePreview.isEmpty { Text(remotePreview).font(.caption).textSelection(.enabled) }
+                    Text(model.syncStatus).font(.caption).textSelection(.enabled)
+                    HStack {
+                        Button("检查推送目标") {
+                            let draft = ArchiveRemote(remote: remoteName, branch: remoteBranch), path = model.settings.archivePath
+                            Task { do {
+                                let preview = try await Task.detached { try ArchiveSync.preview(root: URL(fileURLWithPath: path), remote: draft.remote, branch: draft.branch) }.value
+                                guard model.settings.archivePath == path, remoteName == draft.remote, remoteBranch == draft.branch else { return }
+                                remotePreview = preview
+                                checkedRemote = draft
+                            } catch { checkedRemote = nil; model.error = error.localizedDescription } }
+                        }.disabled(model.settings.archivePath.isEmpty)
+                        Button("保存并启用自动推送") { model.configureArchiveRemote(ArchiveRemote(remote: remoteName, branch: remoteBranch)) }.disabled(checkedRemote != ArchiveRemote(remote: remoteName, branch: remoteBranch))
+                        if model.settings.archiveRemote != nil { Button("停用推送") { model.configureArchiveRemote(nil) }; Button("立即重试") { Task { await model.retryPush() } } }
+                    }
+                }
+            }
+            Card {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("独立后台服务").font(.headline)
+                    Text("当前用户登录期间持续扫描、归档和推送，退出 Ragdoll 后继续运行。后台不执行交互对话。").font(.caption).foregroundStyle(.secondary)
+                    Text("后台运行需要有效的 Apple 签名；外置磁盘及受保护目录还需系统授予访问权限。").font(.caption).foregroundStyle(.secondary)
+                    Text(model.backgroundStatus).font(.caption)
+                    HStack {
+                        Button(model.settings.backgroundEnabled == true ? "停用后台服务" : "启用后台服务") { Task { await model.setBackground(model.settings.backgroundEnabled != true) } }
+                        Button("打开系统登录项") { SMAppService.openSystemSettingsLoginItems() }
+                    }
                 }
             }
             Card {

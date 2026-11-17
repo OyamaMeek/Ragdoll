@@ -79,6 +79,20 @@
   - SQLite 锁等待及迁移来源保留；打包 helper/LaunchAgent 并支持指定 `CODE_SIGN_IDENTITY`。
   - Swift 21 项测试函数通过；独立打包 helper 使用包内 Node 完成实际扫描、归档和推送。系统注册、实际启动及注销成功；外置 SSD 的系统托管完整流程受 TCC 授权限制，未记为通过。
 - **涉及文件**：`Package.swift`、`Sources/RagdollCore/ArchiveSync.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Sources/RagdollCore/Archive.swift`、`Sources/RagdollCore/Models.swift`、`Sources/RagdollCore/Store.swift`、`Sources/RagdollService/ServiceMain.swift`、`Tests/RagdollCoreTests/ArchiveSyncTests.swift`、`Tests/RagdollCoreTests/BackgroundServiceTests.swift`、`scripts/build.sh`、`packaging/com.oyamameek.ragdoll.service.plist`、`docs/CHANGELOG.md`。
+- **Git 提交**：`17e2a9a feat(background): sync git archives from a persistent service`，已普通推送至 `origin/main`。
+
+---
+
+## [2026-11-17 09:57] 迁移与后台设置交付
+
+- **需求/问题描述**：
+  > 在第一版应用中提供跨工具原生迁移、远端推送与独立后台服务的完整操作入口。
+- **实际实现的功能与改动**：
+  - 会话迁移面板支持目标工具、项目和外部附件授权；Claude 方向标注未验证，错误在现有入口展示。
+  - 远端地址及分支检查后启用，独立显示本地归档和推送结果；切换仓库停用旧目标，配置快照避免混用。
+  - 系统登录项启停与状态展示，GUI/服务通过进程锁协调调度；新鲜心跳及所有者检查避免显示陈旧状态。
+  - README、设计、实施及验证记录已更新；最终 Apple Development 签名 release 构建、深度签名校验、helper/内置 Node 自检通过。未执行视觉检查；系统托管下访问外置 SSD 的完整流程受 TCC 限制。
+- **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/ConversationView.swift`、`Sources/Ragdoll/SettingsView.swift`、`Sources/Ragdoll/MigrationView.swift`、`README.md`、`docs/VALIDATION.md`、`docs/superpowers/`、`memory/`、`docs/CHANGELOG.md`。
 - **Git 提交**：待提交，完成后补记实际哈希。
 
 ---

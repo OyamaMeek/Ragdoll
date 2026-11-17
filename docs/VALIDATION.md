@@ -22,3 +22,16 @@
 - 全部 11 项 Swift 测试通过；`bash scripts/build.sh` 完成 release 构建、打包、本地签名校验及助手自检。
 - 修复后的真实 Swift 通信代码完整扫描本机 701 个 Codex 会话，用时 15.6 秒，最大单会话正文共 144,558,178 字节，扫描警告为零。
 - 已直接启动新版 `.app`；应用采样 CPU 约 2%，主线程及通信读取线程均处于等待状态。未执行截图、窗口自动化和 Claude 接入测试。
+
+## 2026-11-17 原生迁移、远端推送与后台服务
+
+- 允许的 Node 测试 18 项通过、6 项跳过；TypeScript 严格检查通过。命令从 `runtime` 运行：`node --test --test-skip-pattern='[Cc]laude' test/acp-state.test.ts test/integration.test.ts test/logs.test.ts test/registry.test.ts test/migration.test.ts`，随后 `npm run typecheck`。不运行 Claude 导出测试文件。
+- Codex 0.147.0 与 dsh 0.2.1-rc.5 均实际恢复迁移后的原生历史，并在续聊中返回旧历史的校验码；这两项以 `RAGDOLL_MIGRATION_LIVE=codex` / `dsh` 单独运行。dsh 使用当前 v4 zstd 历史格式。
+- 真实文件回归覆盖多轮消息、工具/推理全文、压缩历史、JSON/图片附件、外部附件授权、二次迁移重新复制及映射附件、源文件不变、损坏/缺失原始历史拒绝、目标与旧 sidecar 不覆盖、home 身份及旧用量保留。工具输出中的任意文件 URI 不会被当成附件读取。
+- Swift 测试 21 项函数通过（其中依赖故障测试有两组参数）：真实数据库、旧设置、ACP 来源关联、进程锁、独立服务、Git 多地址拒绝、普通推送、无新提交重试、非快进拒绝、有限超时与预览脱敏。
+- 独立 helper 在 GUI 未运行时完成扫描和本地归档，随后新增日志仍被索引及归档；重启后即使手工编辑阻止新的归档，仍能单独推送已有提交。强制终止 Node 或破坏索引表时，服务以失败码退出并释放所有权。
+- 完整变更经过独立只读代码审阅；有效问题在同一修复轮次中用 RED→GREEN 回归修正，未重复派发审阅。
+- release 构建、helper 打包、内置 Node 自检及深度签名校验通过；最终 `dist/Ragdoll.app` 使用本机 Apple Development 身份签名，未公证。隔离的打包 helper 实际使用包内 Node 完成扫描、归档和推送。
+- 系统登录项测试使用独立应用标识和项目内数据，不修改用户的 Ragdoll 设置。`SMAppService` 注册及注销成功；Apple Development 签名且使用产品相同的无 stderr 文件配置时，`launchctl` 确认 helper 已由 launchd 启动。默认临时签名曾被系统签名校验拒绝，构建脚本因此支持 `CODE_SIGN_IDENTITY`。
+- **系统托管下的完整归档流程未通过**：本项目位于外置 SSD，隔离 helper 在打开其 SQLite 文件时等待；系统 TCC 日志显示对该测试应用的目录访问请求未获授权。未更改隐私权限。独立进程完整流程已通过，系统托管流程仅确认注册、实际启动及注销，不能视为扫描/归档/推送已完成。所有测试登录项已注销。
+- 按用户限制，涉及 Claude 的迁移方向仅实现代码并在产品标注未验证；未执行截图和视觉检查。没有验证注销后重新登录、Intel、Windows、Linux 或 Developer ID 公证分发。

@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 import RagdollCore
+import ServiceManagement
+import Darwin
 
 struct Approval: Identifiable {
     var id: String
@@ -39,6 +41,8 @@ final class AppModel: ObservableObject {
     @Published var lastArchive: Date?
     @Published var composerModel = ""
     @Published var toolEvents: [String: [JSONValue]] = [:]
+    @Published var backgroundStatus = "未启用后台服务"
+    @Published var syncStatus = "未启用远端推送"
     let bridge = RuntimeBridge()
     let root: URL
     private let store: Store?
@@ -47,6 +51,7 @@ final class AppModel: ObservableObject {
     private var dirtySince: Date?
     private var dirtyGeneration = 0
     private var initialized = false
+    private var lastRefresh = Date.distantPast
 
     init() {
         root = ProcessInfo.processInfo.environment["RAGDOLL_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Ragdoll")
@@ -78,9 +83,19 @@ final class AppModel: ObservableObject {
             if settings.locations.isEmpty { settings.locations = try initial["locations"].decode([Location].self) }
             let defaults = try initial["agents"].decode([AgentConfig].self)
             for agent in defaults where !settings.agents.contains(where: { $0.id == agent.id }) { settings.agents.append(agent) }
-            try saveSettings(); ready = true; await refresh()
+            try saveSettings(); ready = true
+            if settings.backgroundEnabled == true { await setBackground(true) }
+            await refresh()
             Task { [weak self] in
-                while !Task.isCancelled { try? await Task.sleep(for: .seconds(60)); guard let self else { return }; await self.refresh() }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(2)); guard let self else { return }
+                    self.pollBackground()
+                    do {
+                        let background = try BackgroundService.isRunning(root: self.root)
+                        if !background, Date().timeIntervalSince(self.lastRefresh) >= 60 { await self.refresh() }
+                        if self.settings.archiveRemote != nil, !background, !self.archiving, FileManager.default.fileExists(atPath: self.root.appendingPathComponent("sync-pending").path), Date().timeIntervalSince(self.lastPushAttempt) >= 60 { await self.retryPush() }
+                    } catch { self.error = error.localizedDescription }
+                }
             }
         } catch { self.error = error.localizedDescription; status = "启动失败" }
     }
@@ -128,8 +143,14 @@ final class AppModel: ObservableObject {
         } catch { self.error = error.localizedDescription }
     }
     func refresh() async {
-        guard ready, !scanning else { return }; scanning = true; status = "正在读取会话…"
+        guard ready, !scanning, !archiving else { return }
+        do { if try BackgroundService.isRunning(root: root) { try BackgroundService.request(root: root); pollBackground(); return } }
+        catch { self.error = error.localizedDescription; return }
+        scanning = true; status = "正在读取会话…"
+        lastRefresh = Date()
         do {
+            let lease = try ServiceLease(root: root)
+            defer { withExtendedLifetime(lease) {} }
             let result = try await bridge.request("scan", ["locations": try .encode(settings.locations)], timeout: 600)
             try reload(); status = "索引已更新 · 本次处理 \(result["count"].text) 个变更会话"
         } catch { self.error = error.localizedDescription; status = "扫描失败，可重试" }
@@ -238,6 +259,7 @@ final class AppModel: ObservableObject {
     func chooseArchive() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true; panel.prompt = "选择归档仓库"
         guard panel.runModal() == .OK, let url = panel.url else { return }
+        if settings.archivePath != url.path { settings.archiveRemote = nil; syncStatus = "未启用远端推送" }
         settings.archivePath = url.path; persistSettings(); scheduleArchive(); Task { await archiveNow() }
     }
     func chooseProject() -> String? {
@@ -249,6 +271,8 @@ final class AppModel: ObservableObject {
         return panel.runModal() == .OK ? panel.urls : []
     }
     private func scheduleArchive(markDirty: Bool = true) {
+        do { if !scanning && !archiving { if try BackgroundService.isRunning(root: root) { archiveTask?.cancel(); return } } }
+        catch { self.error = error.localizedDescription; return }
         guard !settings.archivePath.isEmpty else { return }
         if markDirty { dirtySince = dirtySince ?? Date(); dirtyGeneration += 1 }
         guard dirtySince != nil else { return }
@@ -259,19 +283,100 @@ final class AppModel: ObservableObject {
     }
     func archiveNow() async {
         guard let store, !settings.archivePath.isEmpty, !archiving, !scanning else { return }
+        do { if try BackgroundService.isRunning(root: root) { try BackgroundService.request(root: root); archiveStatus = "已请求后台归档"; return } }
+        catch { self.error = error.localizedDescription; return }
         archiving = true; archiveStatus = "正在保存并提交…"
         let generation = dirtyGeneration
-        let path = settings.archivePath, excluded = settings.excludedProjects, roots = settings.locations.map(\.path)
+        let path = settings.archivePath, excluded = settings.excludedProjects, roots = settings.locations.map(\.path), remote = settings.archiveRemote
         do {
+            let lease = try ServiceLease(root: root)
+            defer { withExtendedLifetime(lease) {} }
             let result = try await Task.detached(priority: .utility) {
                 let sessions = try store.list().filter { !excluded.contains($0.project) }.compactMap { try store.session($0.id) }
                 return try Archive.save(sessions, to: URL(fileURLWithPath: path), sourceRoots: roots)
             }.value
             archiveStatus = result.commit.map { "已保存并提交 · \($0) · \(result.files) 个文件" } ?? "归档已是最新，无需提交"
             lastArchive = Date(); if generation == dirtyGeneration { dirtySince = nil }
+            if let remote, settings.archivePath == path, settings.archiveRemote == remote {
+                try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic)
+                lastPushAttempt = Date(); syncStatus = "正在推送"
+                do {
+                    _ = try await Task.detached(priority: .utility) { try ArchiveSync.push(root: URL(fileURLWithPath: path), remote: remote.remote, branch: remote.branch) }.value
+                    if settings.archivePath == path && settings.archiveRemote == remote {
+                        try FileManager.default.removeItem(at: root.appendingPathComponent("sync-pending"))
+                        syncStatus = "已推送到 \(remote.remote)/\(remote.branch)"
+                    }
+                } catch { syncStatus = "推送待重试：\(error.localizedDescription)" }
+            } else { syncStatus = settings.archiveRemote == nil ? "未启用远端推送" : "配置已变化，等待按当前配置推送" }
         } catch { archiveStatus = "归档未完成：\(error.localizedDescription)"; self.error = error.localizedDescription }
         archiving = false
         if generation != dirtyGeneration { scheduleArchive(markDirty: false) }
+    }
+    private var lastPushAttempt = Date.distantPast
+    func configureArchiveRemote(_ remote: ArchiveRemote?) {
+        settings.archiveRemote = remote; persistSettings()
+        if remote != nil { scheduleArchive(); Task { await archiveNow() } }
+        else { syncStatus = "未启用远端推送" }
+    }
+    func retryPush() async {
+        guard let remote = settings.archiveRemote, !settings.archivePath.isEmpty, !scanning, !archiving else { return }
+        let path = settings.archivePath
+        do {
+            if try BackgroundService.isRunning(root: root) { try BackgroundService.requestPush(root: root); return }
+            archiving = true; defer { archiving = false }
+            let lease = try ServiceLease(root: root); defer { withExtendedLifetime(lease) {} }
+            try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic)
+            lastPushAttempt = Date(); syncStatus = "正在重试推送"
+            _ = try await Task.detached(priority: .utility) { try ArchiveSync.push(root: URL(fileURLWithPath: path), remote: remote.remote, branch: remote.branch) }.value
+            if settings.archivePath == path && settings.archiveRemote == remote {
+                try FileManager.default.removeItem(at: root.appendingPathComponent("sync-pending"))
+                syncStatus = "已推送到 \(remote.remote)/\(remote.branch)"
+            }
+        } catch { syncStatus = "推送待重试：\(error.localizedDescription)" }
+    }
+    func pollBackground() {
+        guard !scanning, !archiving else { return }
+        do {
+            let running = try BackgroundService.isRunning(root: root)
+            if running, let state = try BackgroundService.status(root: root), state.pid == (try BackgroundService.ownerPID(root: root)), kill(state.pid, 0) == 0, Date().timeIntervalSince(state.updated) < 120 {
+                backgroundStatus = "后台服务正在运行 · PID \(state.pid)"
+                status = state.scan; archiveStatus = state.archive; syncStatus = state.sync; lastArchive = state.lastArchive
+                try reload()
+                if let id = selectedID, !self.running.contains(id) { selected = try store?.session(id) }
+            } else if running {
+                backgroundStatus = "目录由后台任务占用，等待新的状态报告"
+            } else {
+                let service = SMAppService.agent(plistName: "com.oyamameek.ragdoll.service.plist")
+                backgroundStatus = service.status == .requiresApproval ? "请在系统登录项中允许后台服务" : settings.backgroundEnabled == true ? "后台服务尚未运行" : "未启用后台服务"
+            }
+        } catch { backgroundStatus = "后台状态检查失败：\(error.localizedDescription)"; self.error = error.localizedDescription }
+    }
+    func setBackground(_ enabled: Bool) async {
+        guard Bundle.main.bundleURL.pathExtension == "app" else { error = "后台服务需要运行打包后的 Ragdoll.app"; return }
+        let service = SMAppService.agent(plistName: "com.oyamameek.ragdoll.service.plist")
+        do {
+            while scanning || archiving { try await Task.sleep(for: .milliseconds(100)) }
+            settings.backgroundEnabled = enabled; try saveSettings()
+            if enabled {
+                archiveTask?.cancel()
+                if service.status != .enabled { try service.register() }
+            } else { try await service.unregister() }
+            pollBackground()
+        } catch { self.error = error.localizedDescription; pollBackground() }
+    }
+    func migrateSelected(agent: AgentConfig, cwd: String, authorizedAttachments: [URL] = []) async -> Bool {
+        guard let session = selected else { return false }
+        do {
+            let config = try hydrated(agent)
+            let key = agent.kind == "codex" ? "CODEX_HOME" : agent.kind == "claude" ? "CLAUDE_CONFIG_DIR" : "DSH_HOME"
+            guard let home = config.env[key] ?? settings.locations.first(where: { $0.source == agent.kind })?.path else { throw NSError(domain: "Ragdoll.Migration", code: 1, userInfo: [NSLocalizedDescriptionKey: "请先设置目标工具的历史目录"]) }
+            let actual = URL(fileURLWithPath: home).standardizedFileURL.resolvingSymlinksInPath()
+            let identityHome = settings.locations.first { $0.source == agent.kind && URL(fileURLWithPath: $0.path).standardizedFileURL.resolvingSymlinksInPath() == actual }?.path ?? home
+            let result = try await bridge.request("migrate", ["session": try .encode(session), "target": try .encode(config), "home": .string(identityHome), "cwd": .string(cwd), "authorizedAttachments": try .encode(authorizedAttachments.map(\.path))], timeout: 600)
+            let migrated = try result["session"].decode(Session.self)
+            _ = try store?.save(migrated); try reload(); select(migrated.id); scheduleArchive()
+            return true
+        } catch { self.error = error.localizedDescription; return false }
     }
     func openDesktop(_ session: Session) { if let url = URL(string: "https://claude.ai/chat/\(session.nativeID)") { NSWorkspace.shared.open(url) } }
     private func collectLoginLinks(_ value: JSONValue) {
