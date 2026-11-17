@@ -168,3 +168,19 @@
 - **Git 提交**：`621d8b0 feat(dashboard): filter recent sessions by calendar period`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 14:46] 图片独立归档与远端推送
+
+- **需求/问题描述**：
+  > 归档没有上传；用户确认公开上传，并要求由应用把 Markdown 中的图片剥离为独立文件上传。
+- **实际实现的功能与改动**：
+  - GUI 与后台共用归档逻辑，将可解码的内嵌图片保存为按 SHA-256 命名的独立图片，通过相对路径引用；同一会话的重复图片复用文件，正文及图片字节保留。
+  - 无源文件的 events.json 同样使用图片引用；代码示例中的无效图片 URL 保留原文。图片继续受目录边界、清单摘要和手工修改保护约束。
+  - 超过 50 MiB 的原始日志以确定性 gzip 无损保存，更新正文中的源文件链接，仅替换未被手工修改或外部暂存的受管理副本；源文件不变，归档文件超过 100 MiB 时明确失败。
+  - 新增回归先因图片未抽离和日志未压缩失败；实现后全部 31 项 Swift 测试通过，release 打包、Apple Development 深度签名与助手自检通过。
+  - 新版打包 helper 完成本机 812 个会话扫描与归档；全量校验 3,776 个受管理文件摘要，包含 1,394 个独立图片与 785 份 Markdown。原超限 Markdown 从 144,583,047 字节缩小至 1,616,677 字节；原日志 gzip 为 104,436,682 字节，解压后 SHA-256 与源文件一致。
+  - 旧归档历史和数据库已建立本地恢复备份；当前公开远端的实际推送验证进行中。未运行截图、窗口交互或 Claude 测试。
+- **涉及文件**：`Sources/RagdollCore/Archive.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollCoreTests/ArchiveImagesTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

@@ -125,7 +125,7 @@ struct SettingsView: View {
                         if model.archiving { ProgressView().controlSize(.small) }
                         Button("立即归档") { Task { await model.archiveNow() } }.buttonStyle(.borderedProminent).disabled(model.archiving || model.settings.archivePath.isEmpty)
                     }
-                    Text("自动保存采用 30 秒防抖，最长合并 5 分钟。源文件删除后保留已有归档；手工修改的归档文件会阻止自动覆盖。Git 需要已配置提交者姓名与邮箱。").font(.caption).foregroundStyle(.secondary)
+                    Text("Markdown 内嵌图片保存为独立文件并使用相对路径引用；超过 50 MiB 的原始文件无损压缩为 gzip。自动保存采用 30 秒防抖，最长合并 5 分钟。源文件删除后保留已有归档；手工修改会阻止自动覆盖。Git 需要已配置提交者姓名与邮箱。").font(.caption).foregroundStyle(.secondary)
                 }
             }
             Card {
