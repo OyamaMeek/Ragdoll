@@ -149,7 +149,8 @@
   - 索引缺失兼容，损坏或无效记录通过既有 warning 通道报告并保留有效名称；不增加依赖或修改源日志。
   - 四项新增回归先失败，修复后 Node 测试 22 项通过、6 项跳过，TypeScript 检查通过；本机 711 个 Codex 会话中 582 个保存名称全部匹配，指令标题和 warning 均为零。
   - release 打包、Apple Development 深度签名和助手自检通过，新版应用已启动；未执行截图或窗口交互验证，未运行 Claude 测试。
+  - 应用 SQLite 索引中的 555 个保存名称全部匹配；仅剩 1 条旧指令标题，其源日志均已删除且无保存名称，保留历史记录。
 - **涉及文件**：`runtime/src/logs.ts`、`runtime/test/logs.test.ts`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`9e48ec8 fix(logs): read saved Codex session titles`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
