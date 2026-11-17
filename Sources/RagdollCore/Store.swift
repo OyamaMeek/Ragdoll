@@ -4,7 +4,8 @@ import GRDB
 public final class Store: Sendable {
     private let db: DatabaseQueue
     public init(path: String) throws {
-        db = try DatabaseQueue(path: path)
+        var configuration = Configuration(); configuration.busyMode = .timeout(10)
+        db = try DatabaseQueue(path: path, configuration: configuration)
         try db.write { db in
             try db.execute(sql: "CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, source TEXT NOT NULL, native_id TEXT NOT NULL, title TEXT NOT NULL, project TEXT NOT NULL, updated REAL NOT NULL, body BLOB NOT NULL, summary BLOB NOT NULL, search TEXT NOT NULL)")
             try db.execute(sql: "CREATE INDEX IF NOT EXISTS sessions_updated ON sessions(updated DESC)")
@@ -21,11 +22,13 @@ public final class Store: Sendable {
                 let previous = try JSONDecoder().decode(Session.self, from: existing)
                 session.files = Array(Set(previous.files + session.files)).sorted()
                 session.instanceID = session.instanceID ?? previous.instanceID
+                session.migration = session.migration ?? previous.migration
             }
             if let nativeSource = session.nativeSource {
                 let candidates = try Data.fetchAll(db, sql: "SELECT body FROM sessions WHERE source=? AND native_id=?", arguments: [nativeSource, session.nativeID]).map { try JSONDecoder().decode(Session.self, from: $0) }.filter { $0.home == session.home }
                 if candidates.count == 1, let native = candidates.first {
                     session.canonicalID = native.id; session.files = Array(Set(session.files + native.files)).sorted(); session.usage = native.usage
+                    session.migration = session.migration ?? native.migration
                 }
             }
             var changed = try Self.upsert(db, session)
@@ -33,6 +36,7 @@ public final class Store: Sendable {
                 let aliases = try Data.fetchAll(db, sql: "SELECT body FROM sessions WHERE source='acp' AND native_id=?", arguments: [session.nativeID]).map { try JSONDecoder().decode(Session.self, from: $0) }
                 for var alias in aliases where alias.nativeSource == session.source && alias.home == session.home {
                     alias.canonicalID = session.id; alias.usage = session.usage; alias.files = Array(Set(alias.files + session.files)).sorted()
+                    alias.migration = alias.migration ?? session.migration
                     changed = try Self.upsert(db, alias) || changed
                 }
             }
@@ -68,4 +72,5 @@ public final class Store: Sendable {
         let data = try JSONEncoder().encode(settings)
         try db.write { db in try db.execute(sql: "INSERT INTO settings(id,body) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body", arguments: [data]) }
     }
+    public func dataVersion() throws -> Int { try db.read { try Int.fetchOne($0, sql: "PRAGMA data_version") ?? 0 } }
 }

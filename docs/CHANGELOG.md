@@ -65,6 +65,20 @@
   - 原生来源缺失原始日志时明确失败；保留已有目标与 sidecar，保持配置目录身份及迁移来源。
   - 审阅问题用真实文件回归确认 RED→GREEN；最终允许的 Node 测试 18 项通过、6 项跳过，TypeScript 检查通过。Codex/dsh 迁移后真实续聊各通过一项。
 - **涉及文件**：`runtime/src/migration.ts`、`runtime/src/logs.ts`、`runtime/src/types.ts`、`runtime/test/migration.test.ts`、`docs/CHANGELOG.md`。
+- **Git 提交**：`2ffdfc5 fix(migration): preserve attachments and constrain source reads`，已普通推送至 `origin/main`。
+
+---
+
+## [2026-11-17 09:54] 远端归档与独立后台核心
+
+- **需求/问题描述**：
+  > 自动推送指定 Git 远端，失败保留本地归档并重试；独立后台服务在 GUI 退出后继续工作。
+- **实际实现的功能与改动**：
+  - 普通 Git 推送、唯一目标预览、非交互认证、90 秒超时及地址脱敏；持久待推送状态允许无新提交重试。
+  - 新增用户级 RagdollService、进程锁、设置重载、持久变更标记、扫描/归档/推送调度；Node 或索引故障触发非零退出及所有权释放。
+  - SQLite 锁等待及迁移来源保留；打包 helper/LaunchAgent 并支持指定 `CODE_SIGN_IDENTITY`。
+  - Swift 21 项测试函数通过；独立打包 helper 使用包内 Node 完成实际扫描、归档和推送。系统注册、实际启动及注销成功；外置 SSD 的系统托管完整流程受 TCC 授权限制，未记为通过。
+- **涉及文件**：`Package.swift`、`Sources/RagdollCore/ArchiveSync.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Sources/RagdollCore/Archive.swift`、`Sources/RagdollCore/Models.swift`、`Sources/RagdollCore/Store.swift`、`Sources/RagdollService/ServiceMain.swift`、`Tests/RagdollCoreTests/ArchiveSyncTests.swift`、`Tests/RagdollCoreTests/BackgroundServiceTests.swift`、`scripts/build.sh`、`packaging/com.oyamameek.ragdoll.service.plist`、`docs/CHANGELOG.md`。
 - **Git 提交**：待提交，完成后补记实际哈希。
 
 ---

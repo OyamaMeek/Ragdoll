@@ -22,6 +22,9 @@ if [ -d "$stage" ]; then rm -rf "$stage"; fi
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources/runtime/app"
 trap 'rm -rf "$stage"' EXIT
 cp .build/release/Ragdoll "$stage/Contents/MacOS/Ragdoll"
+cp .build/release/RagdollService "$stage/Contents/MacOS/RagdollService"
+mkdir -p "$stage/Contents/Library/LaunchAgents"
+cp packaging/com.oyamameek.ragdoll.service.plist "$stage/Contents/Library/LaunchAgents/"
 cp packaging/Info.plist "$stage/Contents/Info.plist"
 cp -R ".cache/$node_name" "$stage/Contents/Resources/runtime/node"
 cp runtime/package.json runtime/package-lock.json "$stage/Contents/Resources/runtime/app/"
@@ -31,7 +34,7 @@ for bundle in .build/release/*.bundle; do
   if [ -d "$bundle" ]; then cp -R "$bundle" "$stage/Contents/Resources/"; fi
 done
 cp -R docs "$stage/Contents/Resources/docs"
-codesign --force --deep --sign - "$stage"
+codesign --force --deep --sign "${CODE_SIGN_IDENTITY:--}" "$stage"
 codesign --verify --deep --strict "$stage"
 "$stage/Contents/Resources/runtime/node/bin/node" "$stage/Contents/Resources/runtime/app/dist/main.mjs" --self-check
 if [ -d dist/Ragdoll.previous.app ]; then rm -rf dist/Ragdoll.previous.app; fi

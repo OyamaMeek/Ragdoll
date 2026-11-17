@@ -11,6 +11,8 @@ public enum Archive {
         }
         let fm = FileManager.default
         try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        let lease = try ServiceLease(root: root, name: ".ragdoll-archive-lock")
+        defer { withExtendedLifetime(lease) {} }
         if !fm.fileExists(atPath: root.appendingPathComponent(".git").path) { _ = try git(root, ["init"]) }
         guard try git(root, ["rev-parse", "--show-toplevel"]) == root.path else { throw failure("请选择 Git 仓库的根目录") }
         let manifestURL = root.appendingPathComponent(".ragdoll-manifest.json")

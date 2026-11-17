@@ -40,6 +40,7 @@ public struct Session: Codable, Identifiable, Sendable, Equatable {
     public var nativeSource: String?
     public var canonicalID: String?
     public var nativeStarted: Bool?
+    public var migration: MigrationOrigin?
     public var messages: [Message]
     public var usage: [Usage]
     public var files: [String]
@@ -89,10 +90,29 @@ public struct Price: Codable, Sendable, Equatable {
     }
 }
 
+public struct MigrationOrigin: Codable, Sendable, Equatable {
+    public var sourceID: String
+    public var source: String
+    public var sourceNativeID: String
+    public var created: Double
+    public var attachments: [String]?
+    public init(sourceID: String, source: String, sourceNativeID: String, created: Double) {
+        self.sourceID = sourceID; self.source = source; self.sourceNativeID = sourceNativeID; self.created = created
+    }
+}
+
+public struct ArchiveRemote: Codable, Sendable, Equatable {
+    public var remote: String
+    public var branch: String
+    public init(remote: String = "origin", branch: String = "main") { self.remote = remote; self.branch = branch }
+}
+
 public struct Settings: Codable, Sendable {
     public var locations: [Location] = []
     public var agents: [AgentConfig] = []
     public var archivePath = ""
+    public var archiveRemote: ArchiveRemote?
+    public var backgroundEnabled: Bool?
     public var excludedProjects: [String] = []
     public var weeklyBudget: Double?
     public var prices: [String: Price] = [
