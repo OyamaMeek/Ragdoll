@@ -212,3 +212,17 @@
 - **Git 提交**：`8f9280c fix(startup): show cached interface while reading archive`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 16:34] 最近会话显示日期文字
+
+- **需求/问题描述**：
+  > 每条最近会话右侧不显示几分几秒，改为今天、昨日、本周、本月。
+- **实际实现的功能与改动**：
+  - 按本地自然日、周、月依次显示日期文字；更早记录显示具体日期，省略时间。
+  - 右上角为“全部”导航，保留最近六条、来源和项目筛选以及点击详情。
+  - 两项回归先出现 11 个失败断言，修复后全部 41 项 Swift 测试通过，覆盖午夜、跨年周、夏令时及更早日期。
+  - release 打包、Apple Development 深度签名及助手自检通过，已启动新版并确认进程；未新增截图或视觉检查。
+- **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Tests/RagdollTests/DashboardTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

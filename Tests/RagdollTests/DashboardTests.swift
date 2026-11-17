@@ -1,34 +1,41 @@
 import Foundation
 import SwiftUI
 import Testing
-import RagdollCore
 @testable import Ragdoll
 
-@Test func recentSessionsUseLocalCalendarPeriodsAndUpdatedTime() {
+@Test func recentSessionDatesShowCalendarLabelsInsteadOfElapsedTime() {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
     calendar.firstWeekday = 2
-    let now = calendar.date(from: DateComponents(year: 2027, month: 1, day: 1, hour: 12))!
-    let times = ["2026-11-30T16:00:00Z", "2026-12-27T16:00:00Z", "2026-12-30T16:00:00Z", "2026-12-31T15:59:59Z", "2026-12-31T16:00:00Z", "2027-01-01T04:00:00Z", "2027-01-01T04:00:01Z"]
-    let sessions = times.reversed().map { time in
-        Session(id: time, source: "codex", title: time, created: 0, updated: ISO8601DateFormatter().date(from: time)!.timeIntervalSince1970 * 1000)
+    let now = ISO8601DateFormatter().date(from: "2026-11-19T04:00:00Z")!
+    let cases = [
+        ("2026-11-19T03:59:45Z", "今天"),
+        ("2026-11-18T16:00:00Z", "今天"),
+        ("2026-11-18T15:59:59Z", "昨日"),
+        ("2026-11-17T16:00:00Z", "昨日"),
+        ("2026-11-15T16:00:00Z", "本周"),
+        ("2026-11-15T15:59:59Z", "本月")
+    ]
+    for (time, label) in cases {
+        #expect(recentSessionDateLabel(ISO8601DateFormatter().date(from: time)!, now: now, calendar: calendar) == label)
     }
-    #expect(RecentSessionPeriod.today.sessions(sessions, now: now, calendar: calendar).map(\.id) == [times[5], times[4]])
-    #expect(RecentSessionPeriod.yesterday.sessions(sessions, now: now, calendar: calendar).map(\.id) == [times[3], times[2]])
-    #expect(RecentSessionPeriod.week.sessions(sessions, now: now, calendar: calendar).map(\.id) == [times[5], times[4], times[3], times[2], times[1]])
-    #expect(RecentSessionPeriod.month.sessions(sessions, now: now, calendar: calendar).map(\.id) == [times[5], times[4]])
-    #expect(RecentSessionPeriod.today.sessions([], now: now, calendar: calendar).isEmpty)
+    calendar.locale = Locale(identifier: "en_US_POSIX")
+    let older = ISO8601DateFormatter().date(from: "2026-10-31T15:59:59Z")!
+    #expect(recentSessionDateLabel(older, now: now, calendar: calendar) == "10/31/2026")
 }
 
-@Test func recentYesterdayIncludesEntireDayAcrossDaylightSaving() {
+@Test func recentSessionDateLabelsHandleCrossYearWeeksAndDaylightSaving() {
     var calendar = Calendar(identifier: .gregorian)
+    calendar.firstWeekday = 2
+    calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
+    let newYear = ISO8601DateFormatter().date(from: "2027-01-01T04:00:00Z")!
+    #expect(recentSessionDateLabel(ISO8601DateFormatter().date(from: "2026-12-31T04:00:00Z")!, now: newYear, calendar: calendar) == "昨日")
+    #expect(recentSessionDateLabel(ISO8601DateFormatter().date(from: "2026-12-30T04:00:00Z")!, now: newYear, calendar: calendar) == "本周")
     calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
     let now = ISO8601DateFormatter().date(from: "2026-11-02T20:00:00Z")!
-    let times = ["2026-11-01T06:59:59Z", "2026-11-01T07:00:00Z", "2026-11-02T07:59:59Z", "2026-11-02T08:00:00Z"]
-    let sessions = times.map { time in
-        Session(id: time, source: "codex", title: time, updated: ISO8601DateFormatter().date(from: time)!.timeIntervalSince1970 * 1000)
-    }
-    #expect(RecentSessionPeriod.yesterday.sessions(sessions, now: now, calendar: calendar).map(\.id) == [times[1], times[2]])
+    #expect(recentSessionDateLabel(ISO8601DateFormatter().date(from: "2026-11-01T07:00:00Z")!, now: now, calendar: calendar) == "昨日")
+    #expect(recentSessionDateLabel(ISO8601DateFormatter().date(from: "2026-11-02T07:59:59Z")!, now: now, calendar: calendar) == "昨日")
+    #expect(recentSessionDateLabel(ISO8601DateFormatter().date(from: "2026-11-02T08:00:00Z")!, now: now, calendar: calendar) == "今天")
 }
 
 @Test @MainActor func activityGreensGetLighterInBothThemes() {
