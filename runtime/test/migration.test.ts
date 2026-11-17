@@ -44,7 +44,7 @@ test('native migration preserves complete tool records and leaves source unchang
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('migration copies attachments and rejects a target history symlink before creating external directories', async () => {
+test('migration copies attachments and rejects a target history symlink before creating external directories', async t => {
   const root = resolve(import.meta.dirname, '../../.agent/tests', randomUUID());
   await mkdir(root, { recursive: true });
   const path = await sourceFile(root), image = join(root, 'picture.png'), outside = join(root, 'outside'), home = join(root, 'target');
@@ -67,9 +67,11 @@ test('migration copies attachments and rejects a target history symlink before c
     await symlink(outside, join(hostile, 'sessions'));
     await assert.rejects(migrateSession({ session: source, target, home: hostile, cwd: root }), /越界|符号链接/);
     assert.deepEqual(await readdir(outside), []);
-    const second = await migrateSession({ session: migrated, target: { id: 'dsh', kind: 'dsh', command: '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh', args: ['--profile', 'sdk'], env: {} }, home: join(root, 'second'), cwd: root });
-    assert.equal(second.messages.some(m => m.text.includes(copy)), false);
-    assert.equal(second.messages.filter(m => m.role === 'user' && m.text === 'with attachments').length, 1);
+    await t.test('attachments survive a second dsh migration', { skip: process.env.RAGDOLL_MIGRATION_LIVE !== 'dsh' }, async () => {
+      const second = await migrateSession({ session: migrated, target: { id: 'dsh', kind: 'dsh', command: '/Applications/DeepSeek Harness.app/Contents/Resources/runtime/cli/bin/dsh', args: ['--profile', 'sdk'], env: {} }, home: join(root, 'second'), cwd: root });
+      assert.equal(second.messages.some(m => m.text.includes(copy)), false);
+      assert.equal(second.messages.filter(m => m.role === 'user' && m.text === 'with attachments').length, 1);
+    });
     await rm(copy);
     await assert.rejects(parseFile('codex', migrated.files.find(p => p.endsWith('.jsonl'))!, home), /ENOENT/);
   } finally { await rm(root, { recursive: true, force: true }); }

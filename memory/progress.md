@@ -5,12 +5,14 @@
 - [x] 确认现有 ARM64 打包脚本、Node 26.13.0、macOS 15 最低版本，以及 main 跟踪 origin/main；仓库没有既有 workflow 或版本标签。
 - [x] 添加标签发布与手动构建 workflow，补充版本号、下载校验、签名限制和手动运行说明。
 - [x] actionlint 与全部 workflow shell 语法检查通过；实际执行版本准备步骤，验证有效标签、分支、无效标签和注入文本四种情况。
-- [x] 本机 TypeScript 检查通过、默认 Node 测试 21 项通过/7 项跳过、Swift 41 项通过；本机显式开启 DeepSeek Harness 的迁移恢复测试单独 1 项通过。临时签名 release 打包、ZIP 解压后的权限/架构/深度签名/内置助手检查及 SHA-256 校验通过。
+- [x] 本机 TypeScript 检查通过、默认 Node 测试 21 项通过/8 项跳过、Swift 41 项通过；本机显式开启 DeepSeek Harness 的附件二次迁移与恢复测试共 3 项通过（含父测试）。临时签名 release 打包、ZIP 解压后的权限/架构/深度签名/内置助手检查及 SHA-256 校验通过。
 - [x] 配置提交 `87fcafa chore(release): build macOS app and publish tagged releases` 已普通推送至 origin/main；GitHub 已识别 workflow，并通过 API 触发手动构建。
 - [x] 首次云端运行 `44080690086` 在 Node 校验步骤因缺少 rg 退出（127）；改用系统 grep 后，官方 Node 下载包的 SHA-256 校验通过。修正提交 `695e547 fix(build): use system grep for Node checksum verification` 已普通推送。
 - [x] 本机专属 DeepSeek Harness 测试沿用现有 RAGDOLL_MIGRATION_LIVE 开关，默认跳过，显式开启的真实恢复与缺少凭据断言仍通过。
 - [x] 测试环境约束提交 `d6b1dbc test(migration): gate local dsh restore behind integration flag` 已普通推送；云端运行 `44081815064` 的应用打包通过，迁移测试因缺少 codex 命令失败。
-- [ ] CI 安装固定版本 Codex app-server 后，提交、推送并完成最终云端构建验证。不创建版本标签。
+- [x] `127cf11 fix(release): install Codex for real migration tests` 已普通推送；云端运行 `44082707141` 的工具安装、打包和 Codex 断言通过，附件测试中的 dsh 二次迁移因 runner 未安装该应用失败。
+- [x] 完整复查测试入口，将附件测试中的 dsh 二次迁移独立为受现有开关控制的子测试，保留云端附件、符号链接及缺失文件断言；本机默认与显式开启两种测试均通过。
+- [ ] 提交、推送并完成最终云端构建验证。不创建版本标签。
 
 ## 启动时立即显示主界面（2026-11-17）
 
