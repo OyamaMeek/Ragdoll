@@ -179,8 +179,8 @@
   - 超过 50 MiB 的原始日志以确定性 gzip 无损保存，更新正文中的源文件链接，仅替换未被手工修改或外部暂存的受管理副本；源文件不变，归档文件超过 100 MiB 时明确失败。
   - 新增回归先因图片未抽离和日志未压缩失败；实现后全部 31 项 Swift 测试通过，release 打包、Apple Development 深度签名与助手自检通过。
   - 新版打包 helper 完成本机 812 个会话扫描与归档；全量校验 3,776 个受管理文件摘要，包含 1,394 个独立图片与 785 份 Markdown。原超限 Markdown 从 144,583,047 字节缩小至 1,616,677 字节；原日志 gzip 为 104,436,682 字节，解压后 SHA-256 与源文件一致。
-  - 旧归档历史和数据库已建立本地恢复备份；当前公开远端的实际推送验证进行中。未运行截图、窗口交互或 Claude 测试。
+  - 旧归档历史和数据库已建立本地恢复备份；公开归档已普通推送至 `OyamaMeek/Ragdoll_sync`，首次远端提交与本地 `c75b3ed` 一致。应用保存 `origin/main` 自动推送设置并启动新版；经纯文本辅助功能调用既有“立即归档”入口，应用归档提交 `0b25b2b4fe5128a101aaa03d4b6b8273c6d87dca` 同样自动推送成功，远端 main 完全一致且待重试标记已清除。未运行截图、视觉或 Claude 测试。
 - **涉及文件**：`Sources/RagdollCore/Archive.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollCoreTests/ArchiveImagesTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`287eec3 feat(archive): extract inline images into separate files`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---

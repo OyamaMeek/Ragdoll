@@ -8,9 +8,10 @@
 - [x] 图片和源日志完整、手工修改保护与重复归档回归通过；全部 31 项 Swift 测试、release 打包、Apple Development 签名和助手自检通过。
 - [x] 未上传历史完整备份到 `.agent/archive-before-images.bundle` 并通过 bundle verify，应用数据库备份到 `.agent/archive-settings-before-images.sqlite`。新版打包 helper 完成 812 个会话扫描及实际归档。
 - [x] 全量核对 3,776 个受管理文件摘要、1,394 个独立图片和 785 份 Markdown；原超限 Markdown 降至 1,616,677 字节，源日志 gzip 为 104,436,682 字节，解压后 SHA-256 与源文件一致。最新树没有超限文件。
-- [x] 归档旧历史保留在本地 `archive-before-publish` 分支与 bundle；相同树创建首次上传提交 `c75b3ed`，正在普通推送至公开 `origin/main`。
-- [ ] 备份未上传的归档历史，处理历史超限对象，实际公开推送并启用自动推送，核对远端提交。
-- [ ] 更新开发记录、创建功能提交并普通推送源码。
+- [x] 归档旧历史保留在本地 `archive-before-publish` 分支与 bundle；相同树创建首次上传提交 `c75b3ed`，已普通推送至公开 `origin/main`，远端 SHA 完全一致。
+- [x] 已在备份后保存应用 archiveRemote 为 origin/main，并启动新版 Ragdoll。
+- [x] 新版应用实际归档及按设置自动推送成功；通过纯文本辅助功能调用 File → 立即归档，远端 main 与应用提交 `0b25b2b4fe5128a101aaa03d4b6b8273c6d87dca` 完全一致，sync-pending 已清除。未截图或检查视觉效果。
+- [x] 开发记录已更新；功能提交 `287eec3 feat(archive): extract inline images into separate files` 已普通推送源码 origin/main，实际哈希随文档补记保存。
 
 ## 最近会话日期筛选（2026-11-17）
 
