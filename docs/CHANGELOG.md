@@ -165,6 +165,6 @@
   - 日期限制移除的反例运行中，两项回归的五个断言失败；恢复后全部 28 项 Swift 测试通过，覆盖跨月、跨年、周首、无用量会话、未来记录和 DST。
   - release 打包、Apple Development 深度签名与助手自检通过，新版应用已启动并确认进程；未执行截图或窗口交互验证。
 - **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Tests/RagdollTests/DashboardTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`621d8b0 feat(dashboard): filter recent sessions by calendar period`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
