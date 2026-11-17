@@ -196,6 +196,6 @@
   - 完整快照和旧源覆盖回归先失败、修复后通过；全部 40 项 Swift 测试通过，Node 22 项通过、6 项跳过，TypeScript 检查通过。release 打包、Apple Development 深度签名及助手自检通过。
   - 隔离应用实际读取所选仓库并自动保存，归档树核对有 787 份完整 events.json；验证实例结束后，已用原有正式数据目录和远端设置重新启动新版应用。未运行 Claude、截图或视觉检查。
 - **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/RootView.swift`、`Sources/Ragdoll/SettingsView.swift`、`Sources/RagdollCore/Archive.swift`、`Sources/RagdollCore/Store.swift`、`Sources/RagdollCore/BackgroundService.swift`、`runtime/src/main.ts`、`runtime/src/logs.ts`、`Tests/RagdollCoreTests/ArchiveReadTests.swift`、`Tests/RagdollCoreTests/StoreArchiveTests.swift`、`Tests/RagdollCoreTests/BackgroundServiceTests.swift`、`Tests/RagdollTests/StartupTests.swift`、`README.md`、`docs/VALIDATION.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`7e60a35 feat(startup): require git setup and restore archive before scanning`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---

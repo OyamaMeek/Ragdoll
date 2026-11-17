@@ -8,7 +8,7 @@
 - [x] 接入首次设置页、启动/切换门槛和后台读取顺序；真实 AppModel 设置和独立后台进程验证未设置不扫描、坏仓库不写入、历史与新增会话同时保留。
 - [x] 全部 40 项 Swift 测试通过；允许的 Node 测试 22 项通过、6 项跳过，TypeScript 检查通过。
 - [x] release 打包、Apple Development 深度签名及内置助手自检通过；隔离启动后实际读取所选仓库，核对 787 份完整会话快照。已结束验证实例，并以原正式数据目录重新启动新版应用。
-- [ ] 开发记录已更新，等待提交并普通推送。
+- [x] 功能提交 `7e60a35 feat(startup): require git setup and restore archive before scanning` 已普通推送至源码 `origin/main`；实际哈希随本次文档补记保存。
 
 ## 图片独立归档与实际推送（2026-11-17）
 
