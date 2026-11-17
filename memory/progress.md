@@ -1,5 +1,13 @@
 # 实施进度
 
+## macOS 应用图标（2026-11-17）
+
+- [x] 读取 SVG、Info.plist、本地与 CI 打包入口；PlistBuddy 查询 CFBundleIconFile 因字段不存在失败，确认当前未配置图标。
+- [x] 确定将现有猫咪标识转为多尺寸 ICNS，提交静态资源并由共享打包脚本复制，无需应用逻辑或依赖改动。
+- [x] 使用 AppKit 渲染 SVG 并以 iconutil 生成 149,203 字节 ICNS；配置 CFBundleIconFile 与打包复制，不改变 SVG。
+- [x] 检查 10 个图标资源/7 种尺寸、透明度及应用包内资源一致性；Bash、两份 plist 与 Git diff 检查通过。有效 Apple Development 签名 release 构建、深度签名和内置助手自检通过，已注册新版应用元数据。未执行应用业务测试、Claude 测试或截图。
+- [ ] 提交并普通推送，补记实际提交哈希。
+
 ## README 项目首页（2026-11-17）
 
 - [x] 读取现有 README、功能源码、构建/发布流程和验证记录；GitHub API 确认当前暂无正式 Release，仓库没有图标及项目许可证文件。

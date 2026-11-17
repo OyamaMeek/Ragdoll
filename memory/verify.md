@@ -1,5 +1,14 @@
 # 验证标准
 
+## macOS 应用图标
+
+- 修复前 PlistBuddy 查询 `CFBundleIconFile` 因不存在而失败；修复后值为 `Ragdoll.icns`，应用 Resources 中对应资源存在且非空。
+- 通过系统 AppKit 渲染源 SVG，iconutil 生成和反向解包 ICNS，检查 16/32/64/128/256/512/1024 像素资源及透明通道。
+- 打包脚本 Bash 语法、Info.plist 校验与 `git diff --check` 通过；实际运行 release 打包，保持有效 Apple 签名并通过深度签名与内置助手自检。
+- 不新增截图、视觉检查、应用业务或 Claude 测试；提交后普通推送并核对远端 SHA。
+- 已通过：10 个资源涵盖 16–1024 像素且 alpha 与渲染结果一致；8 项解包像素完全一致，iconutil 转换的 16/32 像素传统资源仅半透明边缘颜色有差异，非透明主体像素一致。包内 ICNS 与提交资源字节一致，CFBundleIconFile 可解析。
+- 已通过：有效 Apple Development 身份的 release 构建、深度签名及内置助手自检；Bash 语法、源/打包 plist 与 `git diff --check` 检查。LaunchServices 注册成功，未验证 Finder/Dock 实际显示。
+
 ## README 项目首页
 
 - 具有居中标识、标题、徽章、导航、功能分类表格、安装和首次使用入口；仅描述已有功能，年度热力图与预算默认状态符合源码。

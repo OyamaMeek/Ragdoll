@@ -1,5 +1,12 @@
 # Ragdoll 实施计划
 
+## macOS 应用图标
+
+- 用户指定使用 `docs/assets/ragdoll.svg` 猫咪标识；将其转换成标准多尺寸 `packaging/Ragdoll.icns`，保留图案及透明圆角。
+- `packaging/Info.plist` 设置 `CFBundleIconFile`，`scripts/build.sh` 将 ICNS 复制到应用 Resources，沿用本地和 CI 共享打包入口。
+- 范围为图标资源、Info.plist、打包脚本和任务记录；应用逻辑、调用方、测试、fixtures、公开接口与依赖均不变。不新增运行时图标覆盖或图标生成依赖。
+- 已通过 PlistBuddy 确认图标配置缺失。转换后检查各尺寸、实际 release 打包、有效证书签名及助手自检；提交并普通推送。不截图或执行 Claude 测试。
+
 ## README 项目首页
 
 - 按用户提供的参考图，采用居中猫咪标识、项目名、平台/技术/CI 徽章、简短介绍、导航与功能分类表格，保留中文。

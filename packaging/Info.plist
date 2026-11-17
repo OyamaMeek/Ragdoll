@@ -5,6 +5,7 @@
   <key>CFBundleIdentifier</key><string>com.oyamameek.ragdoll</string>
   <key>CFBundleName</key><string>Ragdoll</string>
   <key>CFBundleDisplayName</key><string>Ragdoll</string>
+  <key>CFBundleIconFile</key><string>Ragdoll.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>CFBundleVersion</key><string>1</string>

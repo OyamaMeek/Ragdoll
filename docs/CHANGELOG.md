@@ -259,3 +259,17 @@
 - **Git 提交**：`be4d3eb docs(readme): present project features and getting started`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 21:13] 将猫咪标识设置为应用图标
+
+- **需求/问题描述**：
+  > 将 README 中的猫咪标识设置为 Ragdoll 应用图标。
+- **实际实现的功能与改动**：
+  - 复用现有 SVG，通过 AppKit 与 iconutil 生成标准多尺寸 `Ragdoll.icns`；设置 `CFBundleIconFile`，共享打包脚本复制图标到应用 Resources，本地和 CI 打包均使用该资源。
+  - 10 个资源覆盖 16–1024 像素，透明圆角与 alpha 检查通过；8 项解包像素完全一致，16/32 像素传统资源仅半透明边缘颜色有系统转换差异，非透明主体一致。打包图标与源 ICNS 字节一致。
+  - 实际 release 构建、有效 Apple Development 签名、深度签名和内置助手自检通过；Bash、plist 及 Git diff 检查通过，LaunchServices 注册新版元数据成功。
+  - 未修改应用业务逻辑，未执行应用业务测试、Claude 测试或截图/视觉检查；Finder/Dock 实际显示未验证。
+- **涉及文件**：`packaging/Ragdoll.icns`、`packaging/Info.plist`、`scripts/build.sh`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---
