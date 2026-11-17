@@ -39,3 +39,18 @@
 - **Git 提交**：`98348dd fix(runtime): prevent scans stalling on large messages`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 08:35] 跨工具原生历史迁移运行时
+
+- **需求/问题描述**：
+  > 第一版支持将完整旧会话转换成目标原生历史；不兼容的工具或推理记录允许按来源保留全文。
+- **实际实现的功能与改动**：
+  - 增加迁移运行时入口、Codex/Claude Code/dsh 写入器、原始记录与附件保留、非覆盖发布、路径边界和来源清单。
+  - Codex 与 dsh 目标通过真实恢复和续聊检查，均返回旧历史中的校验码；Claude 写入代码保留未验证状态，不运行其原生检查。
+  - 修复 dsh 以错误原因结束轮次时仍返回成功的问题；真实缺失凭据检查先失败、修复后通过。
+  - TypeScript 严格检查通过；明确排除 Claude 后，允许的 Node 回归 15 项通过、6 项集成检查跳过。另有两项迁移后的实际续聊检查分别通过。
+  - 早先反向测试筛选意外运行一项 Claude 日志解析测试，未启动 Claude 原生对话；后续改为显式跳过规则，已记录注意事项。
+- **涉及文件**：`runtime/src/migration.ts`、`runtime/src/main.ts`、`runtime/src/logs.ts`、`runtime/src/types.ts`、`runtime/src/agents.ts`、`runtime/test/migration.test.ts`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交，完成后补记实际哈希。
+
+---

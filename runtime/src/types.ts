@@ -8,6 +8,7 @@ export interface Session {
   messages: Message[]; usage: Usage[]; files: string[]; warnings: string[];
   nativeSource?: string;
   nativeStarted?: boolean;
+  migration?: { sourceID: string; source: string; sourceNativeID: string; created: number };
 }
 export interface Location { source: 'codex' | 'claude' | 'dsh'; path: string }
 export interface AgentConfig {

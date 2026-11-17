@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { readdir, stat, realpath } from 'node:fs/promises';
+import { readdir, stat, realpath, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { createZstdDecompress } from 'node:zlib';
@@ -149,6 +149,22 @@ export async function parseFile(source: Location['source'], path: string, home =
   if (Number.isFinite(firstTime)) session.created = Math.min(session.created || firstTime, firstTime);
   session.updated = lastTime || file.mtimeMs;
   session.warnings = [...new Set(session.warnings)];
+  let migrationData: Buffer;
+  try { migrationData = await readFile(path + '.ragdoll.json'); }
+  catch (error) { if (object(error).code === 'ENOENT') return session; throw error; }
+  {
+    const migration = object(JSON.parse(migrationData.toString('utf8')));
+    if (typeof migration.sourceID !== 'string' || typeof migration.source !== 'string' || typeof migration.sourceNativeID !== 'string' || typeof migration.created !== 'number') throw new Error('迁移来源记录无效');
+    session.migration = migration as unknown as NonNullable<Session['migration']>;
+    if (typeof migration.title === 'string') session.title = migration.title;
+    session.files.push(path + '.ragdoll.json');
+    if (migration.files !== undefined) {
+      const root = (await realpath(home)) + '/.ragdoll-migrations/';
+      if (!Array.isArray(migration.files) || migration.files.some(p => typeof p !== 'string')) throw new Error('迁移附件清单无效');
+      for (const file of migration.files as string[]) { if (!(await realpath(file)).startsWith(root)) throw new Error('迁移附件清单越界'); }
+      session.files.push(...migration.files as string[]);
+    }
+  }
   return session;
 }
 

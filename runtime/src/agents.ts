@@ -40,6 +40,7 @@ interface AcpApp {
 interface Running {
   session: Session; agent: AgentConfig; busy: boolean; rpc?: RpcProcess; peer?: AcpPeer; claude?: Query;
   turnID?: string; finish?: () => void; tools?: ClientTools; deltaID?: string; replaying?: boolean;
+  failure?: Error;
   fail?: (error: Error) => void; importing?: boolean; hasActivity?: boolean; writeQueue?: Promise<void>;
 }
 
@@ -199,6 +200,8 @@ export class Agents {
     }
     if (method === 'session.event') {
       const e = object(params.event), d = object(e.data), message = object(d.message);
+      const reason = object(d.reason);
+      if (e.type === 'turn/end' && reason.kind === 'error') r.failure = new Error(string(object(reason.error).message, 'dsh 对话执行失败'));
       if (e.type === 'assistant/delta') this.delta(r, string(d.text ?? d.delta));
       if (e.type === 'assistant/message') {
         const text = content(message.content ?? d.content);
@@ -357,7 +360,7 @@ export class Agents {
     }
     const visibleText = text + (files.length ? '\n\n' + files.map(f => `[附件：${basename(f.path)}](${pathToFileURL(f.path).href})`).join('\n') : '');
     const withPaths = text + (files.some(f => !f.mime) ? '\n\n附件路径：\n' + files.filter(f => !f.mime).map(f => f.path).join('\n') : '');
-    r.busy = true; r.deltaID = undefined; r.hasActivity = false;
+    r.busy = true; r.deltaID = undefined; r.hasActivity = false; r.failure = undefined;
     r.session.files = [...new Set([...r.session.files, ...files.map(f => f.path)])];
     r.session.messages.push({ id: randomUUID(), role: 'user', text: visibleText, time: Date.now(), kind: 'text' });
     if (r.session.title === '新对话') r.session.title = text.slice(0, 80);
@@ -376,6 +379,7 @@ export class Agents {
       } else if (r.agent.kind === 'dsh') {
         await r.rpc!.request('session/prompt', { sessionId: r.session.nativeID, contentBlocks: [{ type: 'text', text: withPaths }, ...files.filter(f => f.mime).map(f => ({ type: 'image', data: f.data, mimeType: f.mime }))] });
         await r.rpc!.request('session/wait', { sessionId: r.session.nativeID }, 0);
+        if (r.failure) throw r.failure;
       } else {
         const resumed = r.session.nativeStarted === true;
         const images = files.filter((f): f is typeof f & { mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'; data: string } => f.mime !== undefined && f.data !== undefined);

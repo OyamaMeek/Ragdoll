@@ -12,6 +12,7 @@ import { registry, install, uninstall } from './registry.ts';
 import { Agents, defaultAgents } from './agents.ts';
 import { createTerminalAuth, runTerminalAuth } from './terminal-auth.ts';
 import { fileURLToPath } from 'node:url';
+import { migrateSession } from './migration.ts';
 import { object, string } from './types.ts';
 import type { Data, Location, AgentConfig } from './types.ts';
 
@@ -69,6 +70,7 @@ async function handle(method: string, p: Data): Promise<unknown> {
     return { count: sessions.length };
   }
   if (method === 'registry') return registry();
+  if (method === 'migrate') { const session = await migrateSession(p); emit('session', session); return { session }; }
   if (method === 'install') return install(p.agent, join(root, 'tools'));
   if (method === 'uninstall') { await uninstall(p.agent as AgentConfig, join(root, 'tools')); return {}; }
   if (method === 'probe') return agents.probe(p.agent, string(p.cwd, homedir()));
