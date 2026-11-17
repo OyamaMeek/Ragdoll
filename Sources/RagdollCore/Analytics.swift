@@ -9,7 +9,7 @@ public struct Dashboard: Sendable {
     public var events = 0
     public var sessions = 0
     public var missingUsageSessions = 0
-    public var heatmap = Array(repeating: Array(repeating: 0, count: 24), count: 7)
+    public var dailyTokens: [Date: Int] = [:]
     public var projects: [ProjectTotal] = []
     public var alert: String = "none"
 }
@@ -27,7 +27,6 @@ public enum Analytics {
         var result = Dashboard()
         result.sessions = sessions.count
         let today = calendar.startOfDay(for: now)
-        let start = calendar.date(byAdding: .day, value: -6, to: today)!
         let previousWeek = calendar.date(byAdding: .day, value: -7, to: today)!
         let rollingStart = now.addingTimeInterval(-168 * 3600)
         var projects: [String: ProjectTotal] = [:]
@@ -52,11 +51,7 @@ public enum Analytics {
                     if date >= rollingStart { result.weeklyCost += cost }
                     if date >= previousWeek && date < today { result.recentCost += cost }
                 }
-                if date >= start {
-                    let weekday = calendar.component(.weekday, from: date) - 1
-                    let hour = calendar.component(.hour, from: date)
-                    result.heatmap[weekday][hour] += usage.tokens
-                }
+                result.dailyTokens[calendar.startOfDay(for: date), default: 0] += usage.tokens
             }
             projects[session.project] = project
         }
@@ -65,5 +60,26 @@ public enum Analytics {
             result.alert = result.weeklyCost >= budget ? "exceeded" : result.weeklyCost >= budget * 0.8 ? "warning" : "none"
         }
         return result
+    }
+
+    public static func heatmapWeeks(year: Int, now: Date = Date(), calendar: Calendar = .current) -> [[Date?]] {
+        let currentYear = calendar.component(.year, from: now)
+        guard year <= currentYear else { return [] }
+        let today = calendar.startOfDay(for: now)
+        let yearStart = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
+        let start = year == currentYear
+            ? calendar.date(byAdding: .day, value: 1, to: calendar.date(byAdding: .year, value: -1, to: today)!)!
+            : yearStart
+        let end = year == currentYear
+            ? today
+            : calendar.date(byAdding: .day, value: -1, to: calendar.date(byAdding: .year, value: 1, to: yearStart)!)!
+        let gridStart = calendar.date(byAdding: .day, value: 1 - calendar.component(.weekday, from: start), to: start)!
+        let count = calendar.dateComponents([.day], from: gridStart, to: end).day! + 1
+        return stride(from: 0, to: count, by: 7).map { week in
+            (0..<7).map { day in
+                let date = calendar.date(byAdding: .day, value: week + day, to: gridStart)!
+                return date >= start && date <= end ? date : nil
+            }
+        }
     }
 }

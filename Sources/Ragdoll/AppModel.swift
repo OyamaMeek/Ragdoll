@@ -18,7 +18,7 @@ final class AppModel: ObservableObject {
     @Published var query = ""
     @Published var source = "all"
     @Published var project = ""
-    @Published var heatmapFilter: [Int]?
+    @Published var heatmapFilter: Date?
     @Published var selectedID: String?
     @Published var running: Set<String> = []
     @Published var scanning = false
@@ -64,11 +64,10 @@ final class AppModel: ObservableObject {
     }
     var filtered: [Session] { sessions.filter { session in
         guard (source == "all" || session.source == source || session.nativeSource == source) && (project.isEmpty || session.project == project) else { return false }
-        guard let bucket = heatmapFilter else { return true }
-        let start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: Date()))!
+        guard let day = heatmapFilter else { return true }
         return session.usage.contains { usage in
             let date = Date(timeIntervalSince1970: usage.time / 1000)
-            return date >= start && Calendar.current.component(.weekday, from: date) - 1 == bucket[0] && Calendar.current.component(.hour, from: date) == bucket[1]
+            return date <= Date() && Calendar.current.isDate(date, inSameDayAs: day)
         }
     } }
     var dashboard: Dashboard { Analytics.summarize(filtered, prices: settings.prices, budget: settings.weeklyBudget) }

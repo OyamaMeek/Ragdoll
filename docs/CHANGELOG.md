@@ -96,3 +96,17 @@
 - **Git 提交**：`4891b75 feat(app): expose native migration and background archive controls`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 12:56] 年度贡献式热力图
+
+- **需求/问题描述**：
+  > 按用户参考图调整热力图的呈现方式。
+- **实际实现的功能与改动**：
+  - 每日绿色方格按周排列为七行，显示月份、周一/三/五、五级图例与右侧年份选择，适配系统浅色和深色主题。
+  - 当前年份显示截至今天的近一年，历史年份显示完整自然年；本地自然日聚合 Token，范围外日期留空，点击方格筛选当天会话。
+  - 历史日期回归先因旧七日统计遗漏数据失败；修复后全部 23 项 Swift 测试通过，覆盖 DST、跨年、闰日、空数据、未来日期和用量去重。
+  - release 打包、Apple Development 深度签名和助手自检通过，新版应用已重新启动。未执行截图、视觉核对或窗口交互测试。
+- **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/RagdollCore/Analytics.swift`、`Tests/RagdollCoreTests/AnalyticsTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

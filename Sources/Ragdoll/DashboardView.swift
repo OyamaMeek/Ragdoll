@@ -3,8 +3,10 @@ import RagdollCore
 
 struct DashboardView: View {
     @EnvironmentObject var model: AppModel
+    @Environment(\.colorScheme) private var colorScheme
     var showSessions: () -> Void
     @State private var budget = ""
+    @State private var heatmapYear = Calendar.current.component(.year, from: Date())
     var body: some View {
         let stats = model.dashboard
         ScrollView {
@@ -47,14 +49,34 @@ struct DashboardView: View {
                         if model.settings.weeklyBudget != nil { Button("清除") { model.settings.weeklyBudget = nil; budget = ""; model.persistSettings() } }
                     }
                 }
-                Card {
-                    VStack(alignment: .leading, spacing: 20) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 6) { Text("7 日热力图").font(.headline); Text("按本地星期和小时显示 Token 活跃度").font(.caption).foregroundStyle(.secondary) }
-                            Spacer()
-                            HStack(spacing: 4) { Text("少").font(.caption2).foregroundStyle(.secondary); ForEach(0..<5) { i in RoundedRectangle(cornerRadius: 3).fill(.blue.opacity(i == 0 ? 0.06 : Double(i) / 4)).frame(width: 12, height: 12) }; Text("多").font(.caption2).foregroundStyle(.secondary) }
+                HStack(alignment: .top, spacing: 16) {
+                    Card {
+                        VStack(alignment: .leading, spacing: 18) {
+                            HStack {
+                                Text("Token 活跃度").font(.headline)
+                                Spacer()
+                                Text(heatmapYear == Calendar.current.component(.year, from: Date()) ? "过去一年" : "\(String(heatmapYear)) 年").font(.caption).foregroundStyle(.secondary)
+                            }
+                            heatmap(stats)
+                            HStack {
+                                Text("按本地日期统计 · 点击方格查看当天会话").font(.caption).foregroundStyle(.secondary)
+                                Spacer()
+                                HStack(spacing: 4) {
+                                    Text("少")
+                                    ForEach(0..<5) { level in RoundedRectangle(cornerRadius: 3).fill(activityColor(level)).frame(width: 12, height: 12) }
+                                    Text("多")
+                                }.font(.caption).foregroundStyle(.secondary).accessibilityElement(children: .ignore).accessibilityLabel("Token 用量由少到多，共五级")
+                            }
                         }
-                        heatmap(stats)
+                    }
+                    VStack(spacing: 6) {
+                        ForEach(activityYears(stats), id: \.self) { year in
+                            Button { heatmapYear = year } label: {
+                                Text(String(year)).font(.system(size: 14, weight: .medium)).frame(width: 88, height: 36)
+                                    .background(heatmapYear == year ? Color.blue : .clear, in: RoundedRectangle(cornerRadius: 8))
+                                    .foregroundStyle(heatmapYear == year ? Color.white : .secondary)
+                            }.buttonStyle(.plain).accessibilityLabel("\(String(year)) 年热力图").accessibilityAddTraits(heatmapYear == year ? .isSelected : [])
+                        }
                     }
                 }
                 HStack(alignment: .top, spacing: 18) {
@@ -114,23 +136,51 @@ struct DashboardView: View {
         } }
     }
     func heatmap(_ stats: Dashboard) -> some View {
-        let maximum = max(stats.heatmap.flatMap { $0 }.max() ?? 0, 1)
-        let days = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
-        return Grid(horizontalSpacing: 5, verticalSpacing: 5) {
-            GridRow { Text("").frame(width: 35); ForEach(0..<24) { hour in Text(hour % 6 == 0 ? "\(hour):00" : "").font(.system(size: 9, weight: .medium, design: .monospaced)).foregroundStyle(.secondary).frame(maxWidth: .infinity) } }
-            ForEach(0..<7) { day in
-                GridRow {
-                    Text(days[day]).font(.caption2).foregroundStyle(.secondary).frame(width: 35, alignment: .leading)
-                    ForEach(0..<24) { hour in
-                        let value = stats.heatmap[day][hour]
-                        let intensity = value == 0 ? 0.055 : 0.18 + 0.82 * log1p(9 * Double(value) / Double(maximum)) / log(10)
-                        Button { model.heatmapFilter = [day, hour]; showSessions() } label: {
-                            RoundedRectangle(cornerRadius: 4).fill(.blue.opacity(intensity)).frame(maxWidth: .infinity).frame(height: 25)
-                        }.buttonStyle(.plain).help("\(days[day]) \(hour):00 · \(value.formatted()) Token").accessibilityLabel("\(days[day]) \(hour) 点，\(value) Token")
+        let weeks = Analytics.heatmapWeeks(year: heatmapYear)
+        let maximum = max(weeks.flatMap { $0 }.compactMap { $0 }.map { stats.dailyTokens[$0, default: 0] }.max() ?? 0, 1)
+        return GeometryReader { geometry in
+            let size = max(10, min(18, (geometry.size.width - 40) / CGFloat(weeks.count) - 4))
+            ScrollView(.horizontal) {
+                Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+                    GridRow {
+                        Color.clear.frame(width: 32, height: 18)
+                        ForEach(weeks.indices, id: \.self) { week in
+                            let dates = weeks[week].compactMap { $0 }
+                            let month = dates.first { Calendar.current.component(.day, from: $0) == 1 } ?? (week == 0 ? dates.first : nil)
+                            Text(month.map { $0.formatted(.dateTime.month(.abbreviated)) } ?? "")
+                                .font(.caption).foregroundStyle(.secondary).fixedSize().frame(width: size, alignment: .leading)
+                        }
+                    }
+                    ForEach(0..<7) { day in
+                        GridRow {
+                            Text([1: "周一", 3: "周三", 5: "周五"][day] ?? "").font(.caption2).foregroundStyle(.secondary).frame(width: 32, height: size, alignment: .leading)
+                            ForEach(weeks.indices, id: \.self) { week in
+                                if let date = weeks[week][day] {
+                                    let value = stats.dailyTokens[date, default: 0]
+                                    let level = value == 0 ? 0 : min(4, Int(ceil(4 * Double(value) / Double(maximum))))
+                                    Button { model.heatmapFilter = date; showSessions() } label: {
+                                        RoundedRectangle(cornerRadius: 3).fill(activityColor(level)).frame(width: size, height: size)
+                                    }.buttonStyle(.plain)
+                                        .help("\(date.formatted(date: .complete, time: .omitted)) · \(value.formatted()) Token")
+                                        .accessibilityLabel("\(date.formatted(date: .complete, time: .omitted))，\(value) Token，查看当天会话")
+                                } else {
+                                    Color.clear.frame(width: size, height: size).accessibilityHidden(true)
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
+        }.frame(height: 180)
+    }
+    func activityYears(_ stats: Dashboard) -> [Int] {
+        Array(Set(stats.dailyTokens.keys.map { Calendar.current.component(.year, from: $0) } + [Calendar.current.component(.year, from: Date()), heatmapYear])).sorted(by: >)
+    }
+    func activityColor(_ level: Int) -> Color {
+        if level == 0 { return Color.primary.opacity(colorScheme == .dark ? 0.06 : 0.05) }
+        let dark = [Color(red: 0.01, green: 0.22, blue: 0.09), Color(red: 0.06, green: 0.43, blue: 0.18), Color(red: 0.15, green: 0.63, blue: 0.26), Color(red: 0.22, green: 0.83, blue: 0.33)]
+        let light = [Color(red: 0.61, green: 0.91, blue: 0.66), Color(red: 0.25, green: 0.77, blue: 0.39), Color(red: 0.19, green: 0.63, blue: 0.31), Color(red: 0.13, green: 0.43, blue: 0.22)]
+        return (colorScheme == .dark ? dark : light)[level - 1]
     }
     func empty(_ title: String, icon: String) -> some View { HStack { Image(systemName: icon); Text(title) }.foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 100) }
 }
