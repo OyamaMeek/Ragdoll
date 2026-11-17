@@ -256,6 +256,6 @@
   - 修正年度热力图与可选预算说明；通过 GitHub API 确认暂无正式 Release，保留签名、隐私和未验证能力的限制。
   - SVG XML、9 个引用文件及 3 个章节目标、Git diff 格式检查通过；7 个外部入口与徽章均返回 HTTP 200。仅文档与标识资源变更，未执行应用测试、构建或截图/视觉检查。
 - **涉及文件**：`README.md`、`docs/assets/ragdoll.svg`、`docs/USAGE.md`、`docs/DEVELOPMENT.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`be4d3eb docs(readme): present project features and getting started`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
