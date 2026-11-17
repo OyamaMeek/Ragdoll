@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { scan, defaultLocations } from './logs.ts';
+import { scan, defaultLocations, parseFile } from './logs.ts';
 import { importDesktop } from './desktop.ts';
 import { registry, install, uninstall } from './registry.ts';
 import { Agents, defaultAgents } from './agents.ts';
@@ -51,6 +51,13 @@ function watchLocations(locations: Location[]): void {
 
 async function handle(method: string, p: Data): Promise<unknown> {
   if (method === 'initialize') return { version: '0.1.0', locations: defaultLocations(), agents: await defaultAgents() };
+  if (method === 'archive.read') {
+    if (p.source !== 'codex' && p.source !== 'claude' && p.source !== 'dsh') throw new Error('归档来源无效');
+    if (typeof p.path !== 'string' || !p.path || typeof p.home !== 'string') throw new Error('归档文件路径无效');
+    const session = await parseFile(p.source, p.path, p.home);
+    if (session.warnings.length) throw new Error(`旧归档原始记录无法完整解析：${session.warnings.join('；')}`);
+    return { messages: session.messages, warnings: session.warnings };
+  }
   if (method === 'scan') {
     if (scanActive) throw new Error('正在扫描，请稍后重试');
     const locations = p.locations === undefined ? defaultLocations() : p.locations;

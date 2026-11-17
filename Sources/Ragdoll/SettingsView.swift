@@ -116,8 +116,8 @@ struct SettingsView: View {
             Card {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Git 自动归档").font(.headline)
-                    Text("保存原始记录、Markdown 和元数据；合并变更后创建本地提交，可开启指定远端的自动推送。").foregroundStyle(.secondary)
-                    HStack { Text(model.settings.archivePath.isEmpty ? "尚未选择目录" : model.settings.archivePath).font(.system(.caption, design: .monospaced)).textSelection(.enabled); Spacer(); Button("选择专用仓库…") { model.chooseArchive() } }
+                    Text("启动时先读取 Git 仓库的历史，再检查本机新增数据。保存完整会话、原始记录、Markdown 和元数据；自动创建本地提交，可开启指定远端的自动推送。").foregroundStyle(.secondary)
+                    HStack { Text(model.settings.archivePath.isEmpty ? "尚未选择目录" : model.settings.archivePath).font(.system(.caption, design: .monospaced)).textSelection(.enabled); Spacer(); Button("选择专用仓库…") { model.chooseArchive() }.disabled(model.scanning || model.archiving || model.loadingArchive || !model.running.isEmpty) }
                     Text(model.archiveStatus).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                     HStack {
                         if let date = model.lastArchive { Text("上次完成：\(date.formatted())").font(.caption).foregroundStyle(.secondary) }

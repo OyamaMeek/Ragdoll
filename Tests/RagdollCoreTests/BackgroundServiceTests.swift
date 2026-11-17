@@ -3,6 +3,38 @@ import Testing
 import Darwin
 @testable import RagdollCore
 
+@Test(arguments: ["missing", "history", "corrupt"]) func backgroundServiceRequiresAndLoadsRepositoryBeforeScanning(_ kind: String) async throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    let store = try Store(path: root.appendingPathComponent("index.sqlite").path), archive = root.appendingPathComponent("archive")
+    let source = root.appendingPathComponent("source/sessions")
+    try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+    try Data("{\"type\":\"session_meta\",\"payload\":{\"id\":\"local-new\"}}\n".utf8).write(to: source.appendingPathComponent("new.jsonl"))
+    var settings = Settings(); settings.locations = [Location(source: "codex", path: source.deletingLastPathComponent().path)]
+    if kind != "missing" {
+        try Archive.prepare(archive)
+        try git(archive, ["config", "user.name", "First"]); try git(archive, ["config", "user.email", "first@localhost"])
+        _ = try Archive.save([Session(id: "archived-only", source: "codex", title: "Archived", messages: [Message(role: "user", text: "ARCHIVED_ONLY_1729")])], to: archive)
+        settings.archivePath = archive.path
+        if kind == "corrupt" { try Data("broken".utf8).write(to: archive.appendingPathComponent(".ragdoll-manifest.json")) }
+    }
+    try store.saveSettings(settings)
+    let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let process = Process(); process.executableURL = project.appendingPathComponent(".build/debug/RagdollService"); process.arguments = ["--data-dir", root.path, "--once"]
+    process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+    try process.run(); defer { if process.isRunning { process.terminate(); process.waitUntilExit() } }
+    let deadline = Date().addingTimeInterval(20)
+    while process.isRunning && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
+    #expect(!process.isRunning)
+    if !process.isRunning { #expect(process.terminationStatus == (kind == "corrupt" ? 1 : 0)) }
+    if kind == "history" {
+        #expect(try store.list(query: "ARCHIVED_ONLY_1729").count == 1)
+        #expect(try store.list().count == 2)
+        let restored = try Store(path: root.appendingPathComponent("restored.sqlite").path)
+        #expect(try await Archive.restore(from: archive, into: restored, bridge: RuntimeBridge()) == 2)
+    } else { #expect(try store.list().isEmpty) }
+    if kind == "corrupt" { #expect(try String(contentsOf: archive.appendingPathComponent(".ragdoll-manifest.json"), encoding: .utf8) == "broken") }
+}
+
 @Test func backgroundServiceReportsAnInvalidLockInsteadOfClaimingItIsRunning() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     let other = root.appendingPathComponent("other")
@@ -51,6 +83,9 @@ import Darwin
     if process.isRunning { process.terminate(); Issue.record("独立服务未在期限内完成"); return }
     #expect(process.terminationStatus == 0)
     #expect(try store.list(query: "SERVICE_NATIVE_1729").count == 1)
+    let restoredStore = try Store(path: root.appendingPathComponent("restored.sqlite").path)
+    #expect(try await Archive.restore(from: archive, into: restoredStore, bridge: RuntimeBridge()) == 1)
+    #expect(try restoredStore.list(query: "SERVICE_NATIVE_1729").count == 1)
     #expect(try git(archive, ["log", "-1", "--format=%s"]) == "chore(archive): sync conversations")
     #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
     let head = try git(archive, ["rev-parse", "HEAD"])
@@ -75,7 +110,9 @@ import Darwin
     let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
     let source = root.appendingPathComponent("source/sessions")
     try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
-    var settings = Settings(); settings.backgroundEnabled = true; settings.locations = [Location(source: "codex", path: source.deletingLastPathComponent().path)]; try store.saveSettings(settings)
+    let archive = root.appendingPathComponent("archive")
+    try Archive.prepare(archive)
+    var settings = Settings(); settings.backgroundEnabled = true; settings.archivePath = archive.path; settings.locations = [Location(source: "codex", path: source.deletingLastPathComponent().path)]; try store.saveSettings(settings)
     let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let process = Process(); process.executableURL = project.appendingPathComponent(".build/debug/RagdollService"); process.arguments = ["--data-dir", root.path]
     process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice

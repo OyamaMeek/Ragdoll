@@ -184,3 +184,18 @@
 - **Git 提交**：`287eec3 feat(archive): extract inline images into separate files`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 16:14] 首次 Git 设置与仓库优先启动
+
+- **需求/问题描述**：
+  > 第一次打开应用就要求设置 Git 仓库，后续打开优先读取仓库的数据，再检查新增数据并放入仓库。
+- **实际实现的功能与改动**：
+  - 首次必需选择或创建本地专用 Git 仓库；未设置时不扫描、导入或归档。已配置的仓库读取失败时可重选或重试，并停止扫描和归档。
+  - GUI 和后台先从仓库恢复历史，再扫描本机新增内容并自动归档；共享 Store 拒绝较旧记录覆盖较新历史，保留尚未归档的本机数据。
+  - 所有会话写入完整 events.json；旧 JSONL/gzip 复用原生日志解析，其他旧归档完整保留 Markdown 并提示消息结构限制。保留手工修改保护及既有自动推送。
+  - 完整快照和旧源覆盖回归先失败、修复后通过；全部 40 项 Swift 测试通过，Node 22 项通过、6 项跳过，TypeScript 检查通过。release 打包、Apple Development 深度签名及助手自检通过。
+  - 隔离应用实际读取所选仓库并自动保存，归档树核对有 787 份完整 events.json；验证实例结束后，已用原有正式数据目录和远端设置重新启动新版应用。未运行 Claude、截图或视觉检查。
+- **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/RootView.swift`、`Sources/Ragdoll/SettingsView.swift`、`Sources/RagdollCore/Archive.swift`、`Sources/RagdollCore/Store.swift`、`Sources/RagdollCore/BackgroundService.swift`、`runtime/src/main.ts`、`runtime/src/logs.ts`、`Tests/RagdollCoreTests/ArchiveReadTests.swift`、`Tests/RagdollCoreTests/StoreArchiveTests.swift`、`Tests/RagdollCoreTests/BackgroundServiceTests.swift`、`Tests/RagdollTests/StartupTests.swift`、`README.md`、`docs/VALIDATION.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`。
+- **Git 提交**：待提交。
+
+---

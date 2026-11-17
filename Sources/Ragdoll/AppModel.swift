@@ -24,6 +24,8 @@ final class AppModel: ObservableObject {
     @Published var scanning = false
     @Published var archiving = false
     @Published var ready = false
+    @Published var loadingArchive = false
+    @Published private(set) var archiveLoaded = false
     @Published var status = "正在启动…"
     @Published var error: String?
     @Published var warnings: [String] = []
@@ -48,20 +50,23 @@ final class AppModel: ObservableObject {
     private let store: Store?
     private var reloadTask: Task<Void, Never>?
     private var archiveTask: Task<Void, Never>?
+    private var monitorTask: Task<Void, Never>?
     private var dirtySince: Date?
     private var dirtyGeneration = 0
     private var initialized = false
     private var lastRefresh = Date.distantPast
 
-    init() {
-        root = ProcessInfo.processInfo.environment["RAGDOLL_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Ragdoll")
+    init(root: URL? = nil) {
+        self.root = root ?? ProcessInfo.processInfo.environment["RAGDOLL_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Ragdoll")
         do {
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
-            let settings = try store.settings(), sessions = try store.list()
-            self.store = store; self.settings = settings; self.sessions = sessions
+            try FileManager.default.createDirectory(at: self.root, withIntermediateDirectories: true)
+            let store = try Store(path: self.root.appendingPathComponent("index.sqlite").path)
+            let settings = try store.settings()
+            self.store = store; self.settings = settings
         } catch { store = nil; self.error = error.localizedDescription }
     }
+    deinit { monitorTask?.cancel(); archiveTask?.cancel(); reloadTask?.cancel() }
+    var needsArchiveSetup: Bool { !archiveLoaded }
     var filtered: [Session] { sessions.filter { session in
         guard (source == "all" || session.source == source || session.nativeSource == source) && (project.isEmpty || session.project == project) else { return false }
         guard let day = heatmapFilter else { return true }
@@ -74,10 +79,17 @@ final class AppModel: ObservableObject {
     var projects: [String] { Array(Set(sessions.map(\.project).filter { !$0.isEmpty })).sorted() }
 
     func launch() async {
-        guard !initialized else { return }; initialized = true
+        guard !initialized, let store else { return }
+        guard !settings.archivePath.isEmpty else { status = "请先设置 Git 仓库"; return }
+        initialized = true; loadingArchive = true
+        defer { loadingArchive = false }
         await bridge.setHandler { [weak self] event, data in await self?.receive(event, data) }
         do {
             try await bridge.start(dataDirectory: root)
+            status = "正在读取 Git 仓库…"
+            let archive = URL(fileURLWithPath: settings.archivePath), bridge = self.bridge
+            let count = try await Task.detached(priority: .utility) { try await Archive.restore(from: archive, into: store, bridge: bridge) }.value
+            try reload(); archiveLoaded = true; archiveStatus = "已读取 Git 仓库 · \(count) 个会话"
             let initial = try await bridge.request("initialize")
             if settings.locations.isEmpty { settings.locations = try initial["locations"].decode([Location].self) }
             let defaults = try initial["agents"].decode([AgentConfig].self)
@@ -85,7 +97,8 @@ final class AppModel: ObservableObject {
             try saveSettings(); ready = true
             if settings.backgroundEnabled == true { await setBackground(true) }
             await refresh()
-            Task { [weak self] in
+            scheduleArchive()
+            monitorTask = Task { [weak self] in
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(2)); guard let self else { return }
                     self.pollBackground()
@@ -96,7 +109,7 @@ final class AppModel: ObservableObject {
                     } catch { self.error = error.localizedDescription }
                 }
             }
-        } catch { self.error = error.localizedDescription; status = "启动失败" }
+        } catch { initialized = false; archiveLoaded = false; ready = false; self.error = error.localizedDescription; status = "仓库读取失败，请重试或重新选择" }
     }
     func receive(_ event: String, _ data: JSONValue) {
         do {
@@ -177,6 +190,7 @@ final class AppModel: ObservableObject {
         try saveSettings()
     }
     @discardableResult func startChat(agent: AgentConfig, cwd: String, resume: Session? = nil) async -> Bool {
+        guard ready else { return false }
         do {
             var params: [String: JSONValue] = ["agent": try .encode(hydrated(agent)), "cwd": .string(cwd)]
             if let resume { params["session"] = try .encode(resume) }
@@ -251,15 +265,29 @@ final class AppModel: ObservableObject {
         } catch { self.error = error.localizedDescription }
     }
     func importDesktop() {
+        guard ready else { return }
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.zip, .json]; panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { do { _ = try await bridge.request("import", ["path": .string(url.path)]); try reload(); scheduleArchive() } catch { self.error = error.localizedDescription } }
     }
     func chooseArchive() {
+        guard !scanning, !archiving, !loadingArchive, running.isEmpty else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true; panel.prompt = "选择归档仓库"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        if settings.archivePath != url.path { settings.archiveRemote = nil; syncStatus = "未启用远端推送" }
-        settings.archivePath = url.path; persistSettings(); scheduleArchive(); Task { await archiveNow() }
+        Task { await configureArchive(url) }
+    }
+    func configureArchive(_ url: URL) async {
+        guard !scanning, !archiving, !loadingArchive, running.isEmpty else { return }
+        do {
+            let roots = settings.locations.map(\.path)
+            try await Task.detached(priority: .utility) { try Archive.prepare(url, sourceRoots: roots) }.value
+            archiveTask?.cancel(); monitorTask?.cancel()
+            if settings.archivePath != url.path { settings.archiveRemote = nil; syncStatus = "未启用远端推送" }
+            settings.archivePath = url.path
+            try saveSettings()
+            initialized = false; ready = false; archiveLoaded = false
+            await launch()
+        } catch { self.error = error.localizedDescription }
     }
     func chooseProject() -> String? {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "选择项目"
@@ -272,7 +300,7 @@ final class AppModel: ObservableObject {
     private func scheduleArchive(markDirty: Bool = true) {
         do { if !scanning && !archiving { if try BackgroundService.isRunning(root: root) { archiveTask?.cancel(); return } } }
         catch { self.error = error.localizedDescription; return }
-        guard !settings.archivePath.isEmpty else { return }
+        guard archiveLoaded, !settings.archivePath.isEmpty else { return }
         if markDirty { dirtySince = dirtySince ?? Date(); dirtyGeneration += 1 }
         guard dirtySince != nil else { return }
         guard !scanning else { return }
@@ -281,7 +309,7 @@ final class AppModel: ObservableObject {
         archiveTask = Task { do { try await Task.sleep(for: .seconds(delay)); await archiveNow() } catch {} }
     }
     func archiveNow() async {
-        guard let store, !settings.archivePath.isEmpty, !archiving, !scanning else { return }
+        guard archiveLoaded, let store, !settings.archivePath.isEmpty, !archiving, !scanning else { return }
         do { if try BackgroundService.isRunning(root: root) { try BackgroundService.request(root: root); archiveStatus = "已请求后台归档"; return } }
         catch { self.error = error.localizedDescription; return }
         archiving = true; archiveStatus = "正在保存并提交…"
@@ -318,7 +346,7 @@ final class AppModel: ObservableObject {
         else { syncStatus = "未启用远端推送" }
     }
     func retryPush() async {
-        guard let remote = settings.archiveRemote, !settings.archivePath.isEmpty, !scanning, !archiving else { return }
+        guard archiveLoaded, let remote = settings.archiveRemote, !settings.archivePath.isEmpty, !scanning, !archiving else { return }
         let path = settings.archivePath
         do {
             if try BackgroundService.isRunning(root: root) { try BackgroundService.requestPush(root: root); return }

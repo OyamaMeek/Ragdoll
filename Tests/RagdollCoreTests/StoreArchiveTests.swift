@@ -27,6 +27,19 @@ func testDirectory() throws -> URL {
     #expect(try store.session("one")?.messages.first?.text == "unique searchable text")
 }
 
+@Test func olderSourceDataCannotReplaceNewerRepositoryHistory() throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
+    let archived = Session(id: "one", source: "codex", title: "Newer in Git", updated: 20, messages: [Message(role: "user", text: "NEWER_GIT_HISTORY")])
+    try store.save(archived)
+    let stale = Session(id: "one", source: "codex", title: "Old source", updated: 10)
+    #expect(try !store.save(stale))
+    #expect(try store.session("one") == archived)
+    var fresh = archived; fresh.updated = 30; fresh.messages.append(Message(role: "assistant", text: "NEW_LOCAL_DATA"))
+    #expect(try store.save(fresh))
+    #expect(try store.session("one") == fresh)
+}
+
 @Test func weeklyBudgetVisibilityDefaultsOffAndPersistsWithoutClearingAmount() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     let path = root.appendingPathComponent("index.sqlite").path

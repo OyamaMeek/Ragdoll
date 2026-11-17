@@ -2,7 +2,7 @@ import { createReadStream } from 'node:fs';
 import { readdir, stat, realpath, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
-import { createZstdDecompress } from 'node:zlib';
+import { createZstdDecompress, createGunzip } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { object, string, number, timestamp, content } from './types.ts';
 import type { Data, Location, Session, Usage } from './types.ts';
@@ -21,8 +21,10 @@ export function defaultLocations(): Location[] {
 
 async function* records(path: string, warnings: string[]): AsyncGenerator<Data> {
   const input = createReadStream(path);
-  const stream = /\.(zstd|zst)$/.test(path) ? input.pipe(createZstdDecompress()) : input;
+  const decoded = path.endsWith('.gz') ? input.pipe(createGunzip()) : input;
+  const stream = /\.(zstd|zst)(\.gz)?$/.test(path) ? decoded.pipe(createZstdDecompress()) : decoded;
   input.on('error', error => stream.destroy(error));
+  decoded.on('error', error => stream.destroy(error));
   let pending = '';
   stream.setEncoding('utf8');
   try {
@@ -40,7 +42,7 @@ async function* records(path: string, warnings: string[]): AsyncGenerator<Data> 
   } catch (error) {
     if (!/unexpected end|incomplete|premature/i.test(String(error))) throw error;
     warnings.push('压缩尾部尚未写完，下次扫描重试');
-  } finally { input.destroy(); stream.destroy(); }
+  } finally { input.destroy(); decoded.destroy(); stream.destroy(); }
   if (pending.trim()) {
     try { yield object(JSON.parse(pending)); }
     catch { warnings.push('尾部记录尚未写完，下次扫描重试'); }

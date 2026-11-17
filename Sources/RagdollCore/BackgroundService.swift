@@ -99,12 +99,25 @@ public actor BackgroundWorker {
         try await bridge.start(dataDirectory: root)
         _ = try await bridge.request("initialize")
         var lastScan = Date.distantPast, lastArchiveAttempt = Date.distantPast, lastRequest: Data?, lastPushRequest: Data?, lastSettings: Data?, lastVersion: Int?
+        var loadedArchive: String?
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         repeat {
             do {
                 let settings = try store.settings()
                 if !once && settings.backgroundEnabled != true { break }
+                guard !settings.archivePath.isEmpty else {
+                    state.scan = "请先在 Ragdoll 中设置 Git 仓库"; try publish()
+                    if once { break }
+                    try await Task.sleep(for: .seconds(2)); continue
+                }
                 if let fatalFailure { throw NSError(domain: "Ragdoll.Service", code: 2, userInfo: [NSLocalizedDescriptionKey: fatalFailure]) }
+                if loadedArchive != settings.archivePath {
+                    state.scan = "正在读取 Git 仓库"; try publish()
+                    let store = self.store, bridge = self.bridge
+                    let count = try await Task.detached(priority: .utility) { try await Archive.restore(from: URL(fileURLWithPath: settings.archivePath), into: store, bridge: bridge) }.value
+                    loadedArchive = settings.archivePath
+                    state.archive = "已读取 Git 仓库 · \(count) 个会话"
+                }
                 let settingsData = try encoder.encode(settings)
                 if settingsData != lastSettings { lastSettings = settingsData; needsScan = true; try markDirty() }
                 let version = try store.dataVersion()

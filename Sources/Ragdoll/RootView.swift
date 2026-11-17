@@ -13,6 +13,28 @@ struct RootView: View {
     @EnvironmentObject var model: AppModel
     @State private var page: Page? = .home
     var body: some View {
+        Group {
+            if model.needsArchiveSetup {
+                VStack(spacing: 20) {
+                    Image(systemName: "externaldrive.badge.checkmark").font(.system(size: 42)).foregroundStyle(.blue)
+                    Text("设置 Git 数据仓库").font(.largeTitle.bold())
+                    Text("请选择保存会话的专用 Git 仓库，也可以选择空目录创建仓库。\n每次打开会先读取仓库历史，再检查本机新增数据并自动归档。").multilineTextAlignment(.center).foregroundStyle(.secondary)
+                    if !model.settings.archivePath.isEmpty { Text(model.settings.archivePath).font(.caption.monospaced()).textSelection(.enabled) }
+                    if model.loadingArchive { ProgressView(model.status) }
+                    HStack {
+                        Button("选择或创建 Git 仓库…") { model.chooseArchive() }.buttonStyle(.borderedProminent)
+                        if !model.settings.archivePath.isEmpty { Button("重新读取") { Task { await model.launch() } } }
+                    }.disabled(model.loadingArchive)
+                    Text("本地提交需要 Git 已配置姓名与邮箱；远端自动推送可在设置中配置。").font(.caption).foregroundStyle(.secondary)
+                }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else { content }
+        }
+        .alert("操作未完成", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+            Button("好", role: .cancel) { model.error = nil }
+        } message: { Text(model.error ?? "") }
+        .sheet(item: Binding(get: { model.approvals.first }, set: { _ in })) { request in ApprovalView(request: request).environmentObject(model) }
+    }
+    private var content: some View {
         NavigationSplitView {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
@@ -41,10 +63,6 @@ struct RootView: View {
                 ToolbarItem { Button { model.importDesktop() } label: { Image(systemName: "square.and.arrow.down") }.help("导入 Claude 官方导出包") }
             }
         }
-        .alert("操作未完成", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
-            Button("好", role: .cancel) { model.error = nil }
-        } message: { Text(model.error ?? "") }
-        .sheet(item: Binding(get: { model.approvals.first }, set: { _ in })) { request in ApprovalView(request: request).environmentObject(model) }
     }
 }
 

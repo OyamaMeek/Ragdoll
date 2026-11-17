@@ -20,6 +20,7 @@ public final class Store: Sendable {
             var session = session
             if let existing = try Data.fetchOne(db, sql: "SELECT body FROM sessions WHERE id=?", arguments: [session.id]) {
                 let previous = try JSONDecoder().decode(Session.self, from: existing)
+                guard session.updated >= previous.updated else { return false }
                 session.files = Array(Set(previous.files + session.files)).sorted()
                 session.instanceID = session.instanceID ?? previous.instanceID
                 session.migration = session.migration ?? previous.migration
