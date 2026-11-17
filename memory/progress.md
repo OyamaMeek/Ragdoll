@@ -12,7 +12,9 @@
 - [x] 测试环境约束提交 `d6b1dbc test(migration): gate local dsh restore behind integration flag` 已普通推送；云端运行 `44081815064` 的应用打包通过，迁移测试因缺少 codex 命令失败。
 - [x] `127cf11 fix(release): install Codex for real migration tests` 已普通推送；云端运行 `44082707141` 的工具安装、打包和 Codex 断言通过，附件测试中的 dsh 二次迁移因 runner 未安装该应用失败。
 - [x] 完整复查测试入口，将附件测试中的 dsh 二次迁移独立为受现有开关控制的子测试，保留云端附件、符号链接及缺失文件断言；本机默认与显式开启两种测试均通过。
-- [ ] 提交、推送并完成最终云端构建验证。不创建版本标签。
+- [x] `b57b930 test(migration): isolate dsh attachment integration subtest` 已普通推送；云端运行 `44083771421` 的构建与 Node 检查通过。Swift 测试编译 48 秒完成，执行阶段长时间未结束，取消后日志确认多组 helper 存活。
+- [x] 本机显式串行运行全部 41 项 Swift 测试，20.038 秒通过；workflow 语法检查通过。
+- [ ] 提交、推送 CI 串行设置并完成最终云端构建。不创建版本标签。
 
 ## 启动时立即显示主界面（2026-11-17）
 

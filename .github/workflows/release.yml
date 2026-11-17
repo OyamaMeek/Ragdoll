@@ -56,7 +56,7 @@ jobs:
           node --test --test-skip-pattern='[Cc]laude' runtime/test/{acp-state,integration,logs,migration,registry}.test.ts
 
       - name: Test Swift
-        run: swift test --disable-sandbox
+        run: swift test --disable-sandbox --no-parallel
 
       - name: Package and verify
         run: |
