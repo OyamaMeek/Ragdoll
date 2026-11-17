@@ -209,6 +209,6 @@
   - 读取失败时保留界面与缓存，侧栏提供重试入口；读取完成前禁用刷新和导入按钮，继续保留禁止扫描和写入的保护。
   - 新回归先出现五个失败断言，修复后全部 41 项 Swift 测试通过；release 打包、Apple Development 深度签名及助手自检通过，已在原数据目录重新启动新版。未新增截图或视觉检查，未运行 Claude 实测。
 - **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/RootView.swift`、`Tests/RagdollTests/StartupTests.swift`、`README.md`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`8f9280c fix(startup): show cached interface while reading archive`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
