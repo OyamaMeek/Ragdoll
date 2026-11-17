@@ -1,5 +1,14 @@
 # 验证标准
 
+## GitHub Actions 自动发布
+
+- `vX.Y.Z` 标签触发构建与 Release；普通分支推送不发布，手动分支运行仅上传 artifact；版本写入打包的 Info.plist。
+- workflow 语法检查通过，打包前确认 ARM64；TypeScript、允许的 Node 测试、Swift 测试失败时不执行发布。
+- ZIP 解压后 GUI、helper 与内置 Node 可执行，深度签名验证和内置助手自检通过；SHA-256 校验通过。
+- 仅使用 GITHUB_TOKEN 的 contents: write 权限，发布验证远端标签存在；ZIP 与校验文件同时上传，不覆盖已有 Release。
+- 提交后普通推送，尽可能实际触发远端手动构建并核对结果。未触发的标签发布不得记为已实测；不运行 Claude 测试、视觉检查、证书导入或 Apple 公证。
+- 本机已通过：actionlint、全部 workflow shell 语法、四种版本准备场景、TypeScript、允许的 Node 测试 22 项（另 6 项跳过）、Swift 41 项、临时签名 release 打包，以及 ZIP 解压后的权限/架构/签名/内置助手和 SHA-256 校验。远端运行结果待推送后补记。
+
 ## 启动时立即显示主界面
 
 - 已配置仓库时，初始化及 loadingArchive 期间均显示主界面，已有会话摘要立即可用；无仓库时继续要求设置。

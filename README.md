@@ -15,6 +15,21 @@ open dist/Ragdoll.app
 
 开发运行：先在 `runtime` 执行 `npm ci`，再运行 `bash scripts/dev.sh`。
 
+## 发布
+
+推送 `vX.Y.Z` 版本标签后，[Release macOS workflow](https://github.com/OyamaMeek/Ragdoll/actions/workflows/release.yml) 自动编译、检查并发布到 [GitHub Releases](https://github.com/OyamaMeek/Ragdoll/releases)。例如：
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+每个版本附带 `Ragdoll-macos-arm64.zip` 和 `.zip.sha256` 校验文件，应用版本与标签一致。下载后在同一目录运行 `shasum -a 256 -c Ragdoll-macos-arm64.zip.sha256`，解压并将 `Ragdoll.app` 移入“应用程序”。只支持 macOS 15+、Apple Silicon。
+
+在 Actions 中选择 **Release macOS → Run workflow** 可手动验证；选择分支时只保存构建产物，选择 `vX.Y.Z` 标签时发布 Release。已有 Release 不会被覆盖。发布使用自动提供的 `GITHUB_TOKEN`，无需新增仓库密钥。
+
+CI 构建使用临时签名，未经 Apple 公证，首次打开可能受到 Gatekeeper 限制；独立后台服务需要有效 Apple 签名。TypeScript 检查、允许的 Node 测试、Swift 测试、解压后的签名校验及内置助手自检全部通过后才发布，Claude 测试继续按项目约定排除。
+
 ## 使用
 
 - **首页**：最近 7 个本地自然日的小时热力图、项目用量、估算成本及滚动 168 小时预算。

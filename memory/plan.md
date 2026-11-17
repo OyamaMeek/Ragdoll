@@ -1,5 +1,13 @@
 # Ragdoll 实施计划
 
+## GitHub Actions 自动发布
+
+- 推送 `v主版本.次版本.修订版本` 标签后，在 macOS 15 ARM64 runner 复用 `scripts/build.sh` 编译 `.app`，写入标签版本与构建编号，检查后上传 ZIP 和 SHA-256 到 GitHub Release。
+- 手动运行分支时仅构建并保存 Actions artifact；手动选择版本标签时执行发布。使用内置 GITHUB_TOKEN，不增加应用依赖、证书配置或 Intel 构建。
+- 范围：新增 `.github/workflows/release.yml`、README 发布说明及任务记录；构建调用方、运行时、测试、fixtures、导出接口及应用配置格式保持原样。
+- 运行 TypeScript 检查、允许的 Node 测试、Swift 测试、release 打包，解压后验证可执行权限、签名及内置助手。检查 workflow 语法，提交并普通推送；尽可能实际手动触发远端构建。不创建版本标签或立即发布新版本。
+- CI 沿用临时签名、未公证；明确提示 Gatekeeper 与独立后台服务的有效签名限制。
+
 ## 启动时立即显示主界面
 
 - 已配置仓库时立即显示主界面和已有 SQLite 摘要，读取状态复用侧栏底部小字；首次未配置仓库时保留必需设置页。
