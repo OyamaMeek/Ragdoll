@@ -61,12 +61,12 @@ final class AppModel: ObservableObject {
         do {
             try FileManager.default.createDirectory(at: self.root, withIntermediateDirectories: true)
             let store = try Store(path: self.root.appendingPathComponent("index.sqlite").path)
-            let settings = try store.settings()
-            self.store = store; self.settings = settings
+            let settings = try store.settings(), sessions = try store.list()
+            self.store = store; self.settings = settings; self.sessions = sessions
         } catch { store = nil; self.error = error.localizedDescription }
     }
     deinit { monitorTask?.cancel(); archiveTask?.cancel(); reloadTask?.cancel() }
-    var needsArchiveSetup: Bool { !archiveLoaded }
+    var needsArchiveSetup: Bool { settings.archivePath.isEmpty }
     var filtered: [Session] { sessions.filter { session in
         guard (source == "all" || session.source == source || session.nativeSource == source) && (project.isEmpty || session.project == project) else { return false }
         guard let day = heatmapFilter else { return true }

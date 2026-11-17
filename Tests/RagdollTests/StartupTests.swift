@@ -3,6 +3,32 @@ import Testing
 import RagdollCore
 @testable import Ragdoll
 
+@Test @MainActor func configuredRepositoryShowsCachedInterfaceDuringLoadingAndAfterFailure() async throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
+    var settings = Settings(); settings.archivePath = root.appendingPathComponent("missing-repo").path
+    try store.saveSettings(settings)
+    let cached = Session(id: "cached", source: "codex", title: "Cached history")
+    try store.save(cached)
+    let model = AppModel(root: root)
+    #expect(!model.needsArchiveSetup)
+    #expect(model.sessions.map(\.id) == ["cached"])
+    model.loadingArchive = true
+    #expect(!model.needsArchiveSetup)
+    model.loadingArchive = false
+    await model.launch()
+    #expect(!model.needsArchiveSetup)
+    #expect(model.sessions.map(\.id) == ["cached"])
+    #expect(!model.ready)
+    #expect(!model.archiveLoaded)
+    #expect(model.error != nil)
+    await model.refresh(); await model.archiveNow()
+    #expect(!FileManager.default.fileExists(atPath: settings.archivePath))
+    await model.bridge.close()
+}
+
 @Test @MainActor func firstLaunchRequiresRepositoryBeforeScanningOrImporting() async throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -47,7 +73,7 @@ import RagdollCore
     let failed = AppModel(root: root)
     await failed.launch()
     #expect(!failed.ready)
-    #expect(failed.needsArchiveSetup)
+    #expect(!failed.needsArchiveSetup)
     #expect(failed.error != nil)
     await failed.refresh(); await failed.archiveNow()
     #expect(try String(contentsOf: repo.appendingPathComponent(".ragdoll-manifest.json"), encoding: .utf8) == "broken")
