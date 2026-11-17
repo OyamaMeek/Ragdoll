@@ -51,6 +51,20 @@
   - TypeScript 严格检查通过；明确排除 Claude 后，允许的 Node 回归 15 项通过、6 项集成检查跳过。另有两项迁移后的实际续聊检查分别通过。
   - 早先反向测试筛选意外运行一项 Claude 日志解析测试，未启动 Claude 原生对话；后续改为显式跳过规则，已记录注意事项。
 - **涉及文件**：`runtime/src/migration.ts`、`runtime/src/main.ts`、`runtime/src/logs.ts`、`runtime/src/types.ts`、`runtime/src/agents.ts`、`runtime/test/migration.test.ts`、`docs/CHANGELOG.md`。
+- **Git 提交**：`c82ebeb feat(migration): write native conversation history across tools`，已普通推送至 `origin/main`。
+
+---
+
+## [2026-11-17 09:47] 完整迁移与附件边界修正
+
+- **需求/问题描述**：
+  > 原生迁移需完整保留历史，支持再次迁移并保护源文件和已有目标。
+- **实际实现的功能与改动**：
+  - 附件仅从已知用户附件块和可信清单读取；项目外新引用需要文件选择器授权，工具输出中的任意 URI 不触发文件复制。
+  - JSON 附件独立复制，二次迁移重新映射附件；普通消息去除协议镜像，原始审计文件单独保留。
+  - 原生来源缺失原始日志时明确失败；保留已有目标与 sidecar，保持配置目录身份及迁移来源。
+  - 审阅问题用真实文件回归确认 RED→GREEN；最终允许的 Node 测试 18 项通过、6 项跳过，TypeScript 检查通过。Codex/dsh 迁移后真实续聊各通过一项。
+- **涉及文件**：`runtime/src/migration.ts`、`runtime/src/logs.ts`、`runtime/src/types.ts`、`runtime/test/migration.test.ts`、`docs/CHANGELOG.md`。
 - **Git 提交**：待提交，完成后补记实际哈希。
 
 ---

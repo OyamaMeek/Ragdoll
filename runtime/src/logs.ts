@@ -161,9 +161,11 @@ export async function parseFile(source: Location['source'], path: string, home =
     if (migration.files !== undefined) {
       const root = (await realpath(home)) + '/.ragdoll-migrations/';
       if (!Array.isArray(migration.files) || migration.files.some(p => typeof p !== 'string')) throw new Error('迁移附件清单无效');
-      for (const file of migration.files as string[]) { if (!(await realpath(file)).startsWith(root)) throw new Error('迁移附件清单越界'); }
+      for (const file of migration.files as string[]) { if (!(await realpath(file)).startsWith(root) || !(await stat(file)).isFile()) throw new Error('迁移附件清单越界或文件无效'); }
       session.files.push(...migration.files as string[]);
     }
+    if (migration.attachments !== undefined && (!Array.isArray(migration.attachments)
+      || migration.attachments.some(p => typeof p !== 'string' || !Array.isArray(migration.files) || !migration.files.includes(p)))) throw new Error('迁移附件来源无效');
   }
   return session;
 }

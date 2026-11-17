@@ -4,12 +4,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { zstdDecompressSync, zstdCompressSync } from 'node:zlib';
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { object, string, timestamp, content } from './types.ts';
+import { object, string, timestamp } from './types.ts';
 import type { Data, Session } from './types.ts';
 import { parseFile } from './logs.ts';
 import { RpcProcess } from './rpc.ts';
 
 interface Historical { role: 'user' | 'assistant'; text: string; time: number }
+
+export async function publishNativeHistory(prepared: string, destination: string, sidecar: string): Promise<void> {
+  await link(prepared, destination);
+  try { await writeFile(destination + '.ragdoll.json', sidecar, { flag: 'wx', mode: 0o600 }); }
+  catch (error) { await rm(destination); throw error; }
+}
 
 export async function migrateSession(value: unknown): Promise<Session> {
   const input = object(value), source = object(input.session), target = object(input.target);
@@ -22,9 +28,33 @@ export async function migrateSession(value: unknown): Promise<Session> {
   if (!(await stat(cwd)).isDirectory()) throw new Error('目标项目不是目录');
   const files = source.files;
   if (files.some(p => typeof p !== 'string' || !isAbsolute(p))) throw new Error('源记录路径无效');
+  const authorized = input.authorizedAttachments ?? [];
+  if (!Array.isArray(authorized) || authorized.some(p => typeof p !== 'string' || !isAbsolute(p))) throw new Error('授权附件路径无效');
   const id = randomUUID(), now = Date.now();
-  const history: Historical[] = [], snapshots: { path: string; data: Buffer; fingerprint: string }[] = [];
+  const origin = object(source.migration), previousAttachments = origin.attachments ?? [];
+  if ((Object.keys(origin).length && !Array.isArray(origin.attachments)) || !Array.isArray(previousAttachments)
+    || previousAttachments.some(p => typeof p !== 'string' || !files.includes(p))) throw new Error('旧迁移缺少可信附件清单，请从原会话重新迁移');
+  const previous = new Set(await Promise.all((previousAttachments as string[]).map(p => realpath(p))));
+  const history: Historical[] = [], snapshots: { path: string; actual: string; data: Buffer; fingerprint: string; modified: number }[] = [];
   const attachments = new Set<string>();
+  const projectRoot = await realpath(cwd);
+  const sourceRoot = string(source.home) ? await realpath(string(source.home)) : undefined;
+  for (const path of files as string[]) {
+    const before = await stat(path);
+    if (!before.isFile()) throw new Error(`源记录不是普通文件：${path}`);
+    snapshots.push({ path, actual: await realpath(path), data: await readFile(path), fingerprint: `${before.size}:${before.mtimeMs}`, modified: before.mtimeMs });
+  }
+  const nativeID = string(source.nativeID);
+  const nativeFiles = snapshots.filter(s => sourceRoot && (s.actual.startsWith(join(sourceRoot, 'sessions') + '/') || s.actual.startsWith(join(sourceRoot, 'archived_sessions') + '/') || s.actual.startsWith(join(sourceRoot, 'projects') + '/'))
+    && /\.jsonl(?:\.(?:zstd|zst))?$/.test(s.path)
+    && (basename(s.path).endsWith(nativeID + '.jsonl') || basename(dirname(s.actual)) === nativeID));
+  const primary = source.source === 'acp' ? snapshots.filter(s => basename(s.path) === 'events.jsonl')
+    : source.source === 'desktop' ? [] : nativeFiles.sort((a, b) => Number(/\.v(\d+)\./.exec(b.path)?.[1] ?? 0) - Number(/\.v(\d+)\./.exec(a.path)?.[1] ?? 0) || b.modified - a.modified).slice(0, 1);
+  if (source.source !== 'acp' && source.source !== 'desktop' && !primary.length) throw new Error('原始原生历史尚未取得，请先刷新会话索引后迁移');
+  const explicitAttachments = snapshots.filter(s => previous.has(s.actual) || (source.source !== 'desktop' && !primary.includes(s) && !nativeFiles.includes(s)
+    && !(sourceRoot && s.actual.startsWith(join(sourceRoot, '.ragdoll-migrations') + '/')) && !nativeFiles.some(log => s.actual === log.actual + '.ragdoll.json')));
+  const allowed = new Set([...explicitAttachments.map(s => s.actual), ...await Promise.all((authorized as string[]).map(p => realpath(p)))]);
+  for (const file of explicitAttachments) attachments.add(file.path);
   if (source.source === 'acp' || source.source === 'desktop') {
     for (const raw of source.messages) {
       const message = object(raw);
@@ -32,46 +62,65 @@ export async function migrateSession(value: unknown): Promise<Session> {
       history.push({ role: message.role === 'user' ? 'user' : 'assistant', text: message.text, time: timestamp(message.time) || now });
     }
   }
-  const collectAttachments = (v: unknown): void => {
-    if (Array.isArray(v)) { for (const item of v) collectAttachments(item); return; }
-    const record = object(v), type = string(record.type);
-    for (const [key, item] of Object.entries(record)) {
-      if (typeof item === 'string' && item.startsWith('file://')) attachments.add(fileURLToPath(item));
-      else if (typeof item === 'string' && isAbsolute(item) && /image|file|attachment/.test(type) && /path|url|image/.test(key)) attachments.add(item);
-      else if (typeof item === 'object' && item !== null) collectAttachments(item);
-    }
+  const collectPath = (value: unknown): void => {
+    if (typeof value !== 'string') return;
+    if (value.startsWith('file://')) attachments.add(fileURLToPath(value));
+    else if (isAbsolute(value)) attachments.add(value);
   };
-  for (const path of files as string[]) {
-    const before = await stat(path);
-    if (!before.isFile()) throw new Error(`源记录不是普通文件：${path}`);
-    const data = await readFile(path);
-    const fingerprint = `${before.size}:${before.mtimeMs}`;
-    snapshots.push({ path, data, fingerprint });
-    if (!/\.jsonl(?:\.(?:zstd|zst))?$|\.json$/i.test(path)) { attachments.add(path); continue; }
-    const text = (/\.(zstd|zst)$/.test(path) ? zstdDecompressSync(data) : data).toString('utf8');
-    const records: unknown[] = /\.json$/i.test(path) ? [JSON.parse(text)] : text.split('\n').filter(line => line.trim()).map(line => JSON.parse(line));
+  const collectBlock = (value: unknown): void => {
+    const block = object(value);
+    if (!['input_image', 'localImage', 'local_image', 'image', 'input_file', 'file', 'document', 'attachment', 'resource_link'].includes(string(block.type))) return;
+    for (const record of [block, object(block.source)]) for (const key of ['path', 'file_path', 'filePath', 'image_url', 'url', 'uri']) collectPath(record[key]);
+  };
+  const addRecord = (record: unknown, type: string, time: number) => history.push({ role: 'assistant', time, text: `【迁移来源：${string(source.source)} · ${type}】\n\n${JSON.stringify(record, null, 2)}` });
+  const addMessage = (role: 'user' | 'assistant', value: unknown, time: number): void => {
+    if (typeof value === 'string') { if (value) history.push({ role, text: value, time }); return; }
+    const blocks = Array.isArray(value) ? value : [value];
+    let text: string[] = [];
+    const flush = () => { if (text.length) history.push({ role, text: text.join('\n'), time }); text = []; };
+    for (const raw of blocks) {
+      const block = object(raw);
+      if (role === 'user') collectBlock(block);
+      if (typeof raw === 'string') text.push(raw);
+      else if (['text', 'input_text', 'output_text'].includes(string(block.type)) && typeof block.text === 'string') text.push(block.text);
+      else if (raw !== undefined && raw !== null) { flush(); addRecord(raw, string(block.type, '内容块'), time); }
+    }
+    flush();
+  };
+  for (const snapshot of primary) {
+    const text = (/\.(zstd|zst)$/.test(snapshot.path) ? zstdDecompressSync(snapshot.data) : snapshot.data).toString('utf8');
+    const records: unknown[] = text.split('\n').filter(line => line.trim()).map(line => JSON.parse(line));
+    const mirrored = new Set(records.map(object).filter(e => e.type === 'response_item' && object(e.payload).type === 'message').map(e => {
+      const p = object(e.payload);
+      const text = typeof p.content === 'string' ? p.content : Array.isArray(p.content) ? p.content.map(object).filter(b => ['text', 'input_text', 'output_text'].includes(string(b.type))).map(b => string(b.text)).join('\n') : '';
+      return `${p.role}\0${text}`;
+    }));
     for (const raw of records) {
       const e = object(raw);
-      if (!Object.keys(e).length) throw new Error(`源记录格式无效：${path}`);
-      collectAttachments(e);
+      if (!Object.keys(e).length) throw new Error(`源记录格式无效：${snapshot.path}`);
       const p = object(e.payload), d = object(e.data), m = object(e.message);
-      const time = timestamp(e.timestamp ?? e.time) || now;
+      const time = Math.trunc(timestamp(e.timestamp ?? e.time) || now);
+      if (source.source === 'acp') {
+        const update = object(object(e.params).update), type = string(update.sessionUpdate ?? update.type);
+        if (type === 'user_message_chunk') collectBlock(update.content);
+        if (!/^(?:user_message|agent_message|config_option|available_commands|usage)/.test(type)) addRecord(e, type || string(e.method, 'ACP 记录'), time);
+        continue;
+      }
       const native = e.type === 'response_item' && p.type === 'message' ? p
         : e.type === 'assistant/message' ? object(d.message)
         : e.type === 'user/message' ? d
         : e.type === 'user' || e.type === 'assistant' ? { ...m, role: e.type } : undefined;
       if (native) {
-        const text = content(native.content);
-        if (text) history.push({ role: native.role === 'user' || e.type === 'user/message' ? 'user' : 'assistant', text, time });
+        addMessage(native.role === 'user' || e.type === 'user/message' ? 'user' : 'assistant', native.content, time);
+        continue;
       }
-      history.push({ role: 'assistant', time, text: `【迁移来源：${string(source.source)} · ${string(e.type, '原始记录')}】\n\n${JSON.stringify(e, null, 2)}` });
-    }
-  }
-  if (!snapshots.length) {
-    for (const raw of source.messages) {
-      const m = object(raw);
-      if (typeof m.text !== 'string') throw new Error('源消息内容无效');
-      history.push({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text, time: timestamp(m.time) || now });
+      if (e.type === 'event_msg' && ['user_message', 'agent_message'].includes(string(p.type))) {
+        const role = p.type === 'user_message' ? 'user' : 'assistant';
+        if (role === 'user' && Array.isArray(p.local_images)) for (const path of p.local_images) collectPath(path);
+        if (!mirrored.has(`${role}\0${string(p.message)}`)) addMessage(role, string(p.message), time);
+        if (role === 'user' && Array.isArray(p.images)) for (const image of p.images) addRecord(image, '图片内容', time);
+      } else if (!['session', 'session_meta', 'turn_context', 'turn/start', 'step/start', 'step/end', 'session/title', 'token_usage_record'].includes(string(e.type))
+        && !(e.type === 'event_msg' && p.type === 'token_count') && !(e.type === 'turn/end' && object(d.reason).kind === 'completed')) addRecord(e, string(e.type, '原始记录'), time);
     }
   }
   if (!history.length) throw new Error('没有可迁移的历史记录');
@@ -87,9 +136,11 @@ export async function migrateSession(value: unknown): Promise<Session> {
   try {
     const copies = new Map<string, string>();
     for (const path of attachments) {
-      if (!(await stat(path)).isFile()) throw new Error(`缺失附件或附件不是普通文件：${path}`);
+      const actual = await realpath(path);
+      if (!allowed.has(actual) && actual !== projectRoot && !actual.startsWith(projectRoot + '/')) throw new Error(`附件位于目标项目之外，请通过文件选择器授权：${path}`);
+      if (!(await stat(actual)).isFile()) throw new Error(`缺失附件或附件不是普通文件：${path}`);
       const destination = join(bundle, `${copies.size}-${basename(path)}`);
-      await copyFile(path, destination, constants.COPYFILE_EXCL); copies.set(path, destination);
+      await copyFile(actual, destination, constants.COPYFILE_EXCL); copies.set(path, destination);
     }
     for (const item of history) for (const [from, to] of copies) {
       item.text = item.text.replaceAll(pathToFileURL(from).href, pathToFileURL(to).href)
@@ -100,7 +151,7 @@ export async function migrateSession(value: unknown): Promise<Session> {
       if (`${current.size}:${current.mtimeMs}` !== snapshot.fingerprint) throw new Error('源会话正在变化，请停止原会话后重试迁移');
       await writeFile(join(bundle, `raw-${index}-${basename(snapshot.path)}`), snapshot.data, { flag: 'wx', mode: 0o600 });
     }
-    const migration = { sourceID: string(source.id), source: string(source.source), sourceNativeID: string(source.nativeID), created: now, title: string(source.title, '迁移会话') };
+    const migration = { sourceID: string(source.id), source: string(source.source), sourceNativeID: string(source.nativeID), created: now, title: string(source.title, '迁移会话'), attachments: [...copies.values()] };
     await writeFile(join(bundle, 'manifest.json'), JSON.stringify({ version: 1, migration, target: kind, id, originalUsage: source.usage, attachments: Object.fromEntries(copies) }, null, 2), { flag: 'wx', mode: 0o600 });
     const iso = (time: number) => new Date(time).toISOString();
     let rows: Data[], destination: string;
@@ -163,9 +214,8 @@ export async function migrateSession(value: unknown): Promise<Session> {
       ? Buffer.concat(rows.map(row => zstdCompressSync(Buffer.from(JSON.stringify(row) + '\n'))))
       : Buffer.from(rows.map(row => JSON.stringify(row)).join('\n') + '\n');
     await writeFile(prepared, output, { flag: 'wx', mode: 0o600 });
-    await link(prepared, destination); published = destination;
     const artifacts = [join(bundle, 'manifest.json'), ...snapshots.map((s, index) => join(bundle, `raw-${index}-${basename(s.path)}`)), ...copies.values()];
-    await writeFile(destination + '.ragdoll.json', JSON.stringify({ ...migration, files: artifacts }), { flag: 'wx', mode: 0o600 });
+    await publishNativeHistory(prepared, destination, JSON.stringify({ ...migration, files: artifacts })); published = destination;
     if (kind === 'codex' || kind === 'dsh') {
       const args = target.args as string[];
       const rpc = new RpcProcess(string(target.command), kind === 'codex' ? [...args, 'app-server'] : args, cwd, { ...object(target.env) as Record<string, string>, [kind === 'codex' ? 'CODEX_HOME' : 'DSH_HOME']: canonicalHome });
@@ -180,10 +230,11 @@ export async function migrateSession(value: unknown): Promise<Session> {
         }
       } finally { await rpc.close(); }
     }
-    const session = await parseFile(kind as 'codex' | 'claude' | 'dsh', destination, canonicalHome);
+    const session = await parseFile(kind as 'codex' | 'claude' | 'dsh', destination, home);
     session.migration = migration; session.instanceID = string(target.id); session.title = string(source.title, '迁移会话');
     session.files = [...new Set([...session.files, ...artifacts])];
     session.warnings.push('迁移历史：工具及专属记录按来源全文保留，不重新执行；旧用量归属原会话。');
+    if (!snapshots.length) session.warnings.push('原始导入或事件文件不可用；本次仅包含已经保存的消息。');
     if (kind === 'claude' || source.source === 'claude') session.warnings.push('Claude 原生迁移未验证');
     return session;
   } catch (error) {
