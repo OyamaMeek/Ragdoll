@@ -138,3 +138,18 @@
 - **Git 提交**：`e8fa96a fix(dashboard): lighten heatmap and show hover usage`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 13:24] 读取 Codex 会话小标题
+
+- **需求/问题描述**：
+  > 最近会话显示已有的小标题，避免显示 AGENTS.md 等前置指令。
+- **实际实现的功能与改动**：
+  - 每个 Codex home 扫描一次 `session_index.jsonl`，通过会话 ID 读取保存名称，首页、会话列表、搜索及归档共用；支持归档会话和不同 home。
+  - 单独改名、清空名称或移除索引会更新对应会话；其他会话沿用增量指纹。缺少名称时跳过 AGENTS.md 和环境上下文，从实际提问提取摘要，保留完整消息原文。
+  - 索引缺失兼容，损坏或无效记录通过既有 warning 通道报告并保留有效名称；不增加依赖或修改源日志。
+  - 四项新增回归先失败，修复后 Node 测试 22 项通过、6 项跳过，TypeScript 检查通过；本机 711 个 Codex 会话中 582 个保存名称全部匹配，指令标题和 warning 均为零。
+  - release 打包、Apple Development 深度签名和助手自检通过，新版应用已启动；未执行截图或窗口交互验证，未运行 Claude 测试。
+- **涉及文件**：`runtime/src/logs.ts`、`runtime/test/logs.test.ts`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { object, string, number, timestamp, content } from './types.ts';
 import type { Data, Location, Session, Usage } from './types.ts';
 
-const fingerprints = new Map<string, string>();
+const fingerprints = new Map<string, { file: string; nativeID: string; title: string | undefined }>();
 
 export const sessionKey = (source: string, id: string) => `${source}:${createHash('sha256').update(id).digest('hex').slice(0, 24)}`;
 
@@ -58,6 +58,29 @@ function usage(id: string, time: number, model: string, v: Data, inclusive: bool
   };
 }
 
+function codexPromptTitle(text: string): string {
+  const request = /^## My request:\s*$/m.exec(text);
+  const prompt = (request ? text.slice(request.index + request[0].length) : text).trim();
+  if (/^(?:# AGENTS\.md instructions\b|<(?:environment_context|permissions instructions|INSTRUCTIONS)>)/.test(prompt)) return '';
+  return prompt.replace(/\s+/g, ' ').slice(0, 100);
+}
+
+async function codexTitles(home: string, onError?: (message: string) => void): Promise<Map<string, string>> {
+  const path = join(home, 'session_index.jsonl'), titles = new Map<string, string>(), warnings: string[] = [];
+  try {
+    for await (const record of records(path, warnings)) {
+      if (typeof record.id !== 'string' || !record.id || typeof record.thread_name !== 'string') {
+        warnings.push('会话标题记录缺少有效的 id 或 thread_name');
+        continue;
+      }
+      const title = record.thread_name.trim();
+      if (title) titles.set(record.id, title); else titles.delete(record.id);
+    }
+  } catch (error) { if (object(error).code !== 'ENOENT') throw error; }
+  for (const warning of new Set(warnings)) onError?.(`${path}: ${warning}`);
+  return titles;
+}
+
 export async function parseFile(source: Location['source'], path: string, home = dirname(path)): Promise<Session> {
   const file = await stat(path);
   const session: Session = {
@@ -79,7 +102,7 @@ export async function parseFile(source: Location['source'], path: string, home =
     const addMessage = (role: string, text: string, id = string(e.uuid ?? e.seq, String(line)), kind = 'text') => {
       if (!text) return;
       messages.set(id, { id, role, text, time: time || file.mtimeMs, kind });
-      if (!session.title && role === 'user') session.title = text.replace(/\s+/g, ' ').slice(0, 100);
+      if (!session.title && role === 'user') session.title = source === 'codex' ? codexPromptTitle(text) : text.replace(/\s+/g, ' ').slice(0, 100);
     };
     if (source === 'codex') {
       if (e.type === 'session_meta') {
@@ -184,7 +207,9 @@ export async function scan(locations: Location[], onSession?: (session: Session)
   const results: Session[] = [];
   for (const location of locations) {
     let paths: string[];
+    let titles = new Map<string, string>();
     try {
+      if (location.source === 'codex') titles = await codexTitles(location.path, onError);
       paths = (await Promise.all((location.source === 'claude' ? ['projects'] : ['sessions', ...(location.source === 'codex' ? ['archived_sessions'] : [])]).map(async sub => {
         try { return await walk(join(location.path, sub)); }
         catch (error) { if (object(error).code === 'ENOENT') return []; throw error; }
@@ -204,9 +229,12 @@ export async function scan(locations: Location[], onSession?: (session: Session)
     for (const path of paths) {
       try {
         const info = await stat(path), fingerprint = `${info.size}:${info.mtimeMs}:${info.birthtimeMs}`;
-        if (onSession && fingerprints.get(path) === fingerprint) continue;
+        const previous = fingerprints.get(path);
+        if (onSession && previous?.file === fingerprint && previous.title === titles.get(previous.nativeID)) continue;
         const session = await parseFile(location.source, await realpath(path), location.path);
-        if (onSession) { await onSession(session); fingerprints.set(path, fingerprint); } else results.push(session);
+        const title = titles.get(session.nativeID);
+        if (title) session.title = title;
+        if (onSession) { await onSession(session); fingerprints.set(path, { file: fingerprint, nativeID: session.nativeID, title }); } else results.push(session);
       } catch (error) { onError?.(`${path}: ${String(error)}`); }
     }
   }
