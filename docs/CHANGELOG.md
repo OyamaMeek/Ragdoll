@@ -135,6 +135,6 @@
   - 浮层位置跟随方格并限制左右边界；切换年份、项目、来源、横向滚动或离开首页时清除悬停。
   - 色板回归先失败，修改后全部 26 项 Swift 测试通过；release 打包、Apple Development 深度签名与助手自检通过，新版应用已启动。未执行截图、实际鼠标悬停或边缘定位验证。
 - **涉及文件**：`Package.swift`、`Sources/Ragdoll/DashboardView.swift`、`Tests/RagdollTests/DashboardTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`memory/gotchas.md`、`docs/CHANGELOG.md`。
-- **Git 提交**：待提交。
+- **Git 提交**：`e8fa96a fix(dashboard): lighten heatmap and show hover usage`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---

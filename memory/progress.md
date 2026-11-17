@@ -6,7 +6,7 @@
 - [x] 新增 UI 测试入口；浮层类型缺失先编译失败，接入文本后旧色板因颜色与亮度断言失败。
 - [x] 实现两种主题递增亮度与悬停浮层；全部 26 项 Swift 测试通过。
 - [x] release 打包、Apple Development 深度签名与助手自检通过；新版应用进程已启动。未执行窗口悬停或截图验证。
-- [ ] 记录验证结果，提交并普通推送。
+- [x] 功能提交 `e8fa96a fix(dashboard): lighten heatmap and show hover usage` 已普通推送至 `origin/main`；实际哈希随开发记录补记保存。
 
 ## 每周预算显示开关（2026-11-17）
 
