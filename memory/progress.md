@@ -6,7 +6,8 @@
 - [x] 添加标签发布与手动构建 workflow，补充版本号、下载校验、签名限制和手动运行说明。
 - [x] actionlint 与全部 workflow shell 语法检查通过；实际执行版本准备步骤，验证有效标签、分支、无效标签和注入文本四种情况。
 - [x] 本机 TypeScript 检查通过、允许的 Node 测试 22 项通过/6 项跳过、Swift 41 项通过；临时签名 release 打包、ZIP 解压后的权限/架构/深度签名/内置助手检查及 SHA-256 校验通过。
-- [ ] 提交并普通推送，验证远端 workflow 状态并记录实际结果；不创建版本标签。
+- [x] 配置提交 `87fcafa chore(release): build macOS app and publish tagged releases` 已普通推送至 origin/main；GitHub 已识别 workflow，并通过 API 触发手动构建。
+- [ ] 首次云端运行 `44080690086` 在 Node 校验步骤因缺少 rg 退出（127）；改用系统 grep 后验证并重新推送、触发构建。不创建版本标签。
 
 ## 启动时立即显示主界面（2026-11-17）
 

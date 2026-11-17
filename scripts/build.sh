@@ -13,7 +13,7 @@ node_name="node-v${node_version}-darwin-arm64"
 if [ ! -x ".cache/$node_name/bin/node" ]; then
   curl --fail --location --retry 2 "https://nodejs.org/dist/v${node_version}/${node_name}.tar.gz" -o ".cache/${node_name}.tar.gz"
   curl --fail --location "https://nodejs.org/dist/v${node_version}/SHASUMS256.txt" -o .cache/SHASUMS256.txt
-  rg " ${node_name}\.tar\.gz$" .cache/SHASUMS256.txt > .cache/node-checksums.txt
+  grep -E " ${node_name}\.tar\.gz$" .cache/SHASUMS256.txt > .cache/node-checksums.txt
   (cd .cache && shasum -a 256 -c node-checksums.txt)
   tar -xzf ".cache/${node_name}.tar.gz" -C .cache
 fi
