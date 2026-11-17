@@ -8,8 +8,10 @@ struct DashboardView: View {
     @State private var budget = ""
     @State private var heatmapYear = Calendar.current.component(.year, from: Date())
     @State private var hoveredDay: Date?
+    @State private var recentPeriod = RecentSessionPeriod.today
     var body: some View {
         let stats = model.dashboard
+        let recentSessions = recentPeriod.sessions(model.filtered)
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .bottom) {
@@ -103,9 +105,19 @@ struct DashboardView: View {
                     }
                     Card {
                         VStack(alignment: .leading, spacing: 16) {
-                            HStack { Text("最近会话").font(.headline); Spacer(); Button("全部") { showSessions() }.buttonStyle(.plain).foregroundStyle(.blue) }
-                            if model.filtered.isEmpty { empty("等待本地会话", icon: "bubble.left") }
-                            ForEach(Array(model.filtered.prefix(6))) { session in
+                            HStack {
+                                Text("最近会话").font(.headline)
+                                Spacer()
+                                Menu {
+                                    Picker("会话时段", selection: $recentPeriod) {
+                                        ForEach(RecentSessionPeriod.allCases, id: \.self) { period in Text(period.rawValue).tag(period) }
+                                    }
+                                } label: { Text(recentPeriod.rawValue) }
+                                .menuStyle(.borderlessButton).fixedSize().foregroundStyle(.blue)
+                                .accessibilityLabel("会话时段：\(recentPeriod.rawValue)")
+                            }
+                            if recentSessions.isEmpty { empty("该时段暂无会话", icon: "bubble.left") }
+                            ForEach(Array(recentSessions.prefix(6))) { session in
                                 Button { model.select(session.id); showSessions() } label: {
                                     HStack(alignment: .top, spacing: 10) {
                                         Image(systemName: "bubble.left").foregroundStyle(.secondary).padding(.top, 2)
@@ -204,6 +216,27 @@ struct DashboardView: View {
         return greens[level - 1]
     }
     func empty(_ title: String, icon: String) -> some View { HStack { Image(systemName: icon); Text(title) }.foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 100) }
+}
+
+enum RecentSessionPeriod: String, CaseIterable {
+    case today = "今天"
+    case yesterday = "昨日"
+    case week = "本周"
+    case month = "本月"
+
+    func sessions(_ sessions: [Session], now: Date = Date(), calendar: Calendar = .current) -> [Session] {
+        let component: Calendar.Component = switch self {
+        case .today, .yesterday: .day
+        case .week: .weekOfYear
+        case .month: .month
+        }
+        let date = self == .yesterday ? calendar.date(byAdding: .day, value: -1, to: now)! : now
+        let interval = calendar.dateInterval(of: component, for: date)!
+        return sessions.filter { session in
+            let updated = Date(timeIntervalSince1970: session.updated / 1000)
+            return updated >= interval.start && updated < interval.end && updated <= now
+        }
+    }
 }
 
 private struct ActivityCellAnchor: PreferenceKey {

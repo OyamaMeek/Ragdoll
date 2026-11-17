@@ -154,3 +154,17 @@
 - **Git 提交**：`9e48ec8 fix(logs): read saved Codex session titles`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-17 13:34] 最近会话日期筛选
+
+- **需求/问题描述**：
+  > 将首页最近会话“全部”改为今天、昨日、本周、本月。
+- **实际实现的功能与改动**：
+  - 右上角菜单默认今天，按本地自然日、周、月和会话最后更新时间筛选，排除未来记录；无结果显示“该时段暂无会话”。
+  - 先筛选后显示最近六条，保留项目、来源筛选及点击详情；日期菜单仅影响最近会话卡片。
+  - 日期限制移除的反例运行中，两项回归的五个断言失败；恢复后全部 28 项 Swift 测试通过，覆盖跨月、跨年、周首、无用量会话、未来记录和 DST。
+  - release 打包、Apple Development 深度签名与助手自检通过，新版应用已启动并确认进程；未执行截图或窗口交互验证。
+- **涉及文件**：`Sources/Ragdoll/DashboardView.swift`、`Tests/RagdollTests/DashboardTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：待提交。
+
+---

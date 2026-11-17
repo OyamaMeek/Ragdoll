@@ -1,5 +1,11 @@
 # Ragdoll 实施计划
 
+## 最近会话日期筛选
+
+- 将首页“最近会话”右上角“全部”替换为今天、昨日、本周、本月菜单，默认今天；按本地 Calendar 的自然日、周、月及会话 updated 筛选，排除未来记录。
+- 仅作用于最近会话卡片，继续复用项目、来源筛选及最近六条限制；点击会话仍打开详情。无需修改存储、配置、导出、运行时或 fixture。
+- 范围：DashboardView、DashboardTests 和任务记录。先运行日期边界失败回归，再实现菜单与空状态，运行 Swift 测试及 release 打包，提交并普通推送。不新增视觉检查。
+
 ## Codex 会话小标题
 
 - 扫描每个 Codex home 时读取一次 `session_index.jsonl`，按 nativeID 使用最后保存的非空名称，空名称恢复正文摘要；首页、列表、搜索与归档复用 Session.title。
