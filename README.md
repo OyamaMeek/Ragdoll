@@ -48,6 +48,6 @@ CI 构建使用临时签名，未经 Apple 公证，首次打开可能受到 Gat
 
 ## 验证
 
-Swift 验证包含真实助手的大消息传输回归；先安装 runtime 依赖并运行 `npm --prefix runtime run build`，再运行 `swift test`。助手检查使用 `npm --prefix runtime run typecheck`。真实连接和对话检查需要对应工具已经登录。实际执行记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。按照用户要求，Claude 接入后续仅完成代码，不继续运行 Claude 测试。
+Swift 验证包含真实助手的大消息传输回归；先安装 runtime 依赖并运行 `npm --prefix runtime run build`，再运行 `swift test`。助手检查使用 `npm --prefix runtime run typecheck`。真实连接和对话检查需要对应工具已经登录；需要本机 DeepSeek Harness 的迁移恢复测试与续聊测试统一通过 `RAGDOLL_MIGRATION_LIVE=dsh` 开启，云端构建默认跳过。实际执行记录见 [docs/VALIDATION.md](docs/VALIDATION.md)。按照用户要求，Claude 接入后续仅完成代码，不继续运行 Claude 测试。
 
 本项目读取 `references` 中的格式与实现思路。参考项目不随应用源码提交，样本出处见 [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md)。

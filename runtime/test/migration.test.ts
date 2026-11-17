@@ -163,7 +163,7 @@ test('migration refuses malformed raw input before publishing target history', a
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('Codex history becomes a dsh native conversation that the installed tool can resume', async () => {
+test('Codex history becomes a dsh native conversation that the installed tool can resume', { skip: process.env.RAGDOLL_MIGRATION_LIVE !== 'dsh' }, async () => {
   const root = resolve(import.meta.dirname, '../../.agent/tests', randomUUID());
   await mkdir(root, { recursive: true });
   const path = await sourceFile(root);
