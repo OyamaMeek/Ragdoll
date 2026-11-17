@@ -18,7 +18,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("设置").font(.largeTitle.bold())
             Picker("设置分类", selection: $tab) {
-                Text("数据来源").tag(0); Text("Agent 与 ACP").tag(1); Text("Git 归档").tag(2); Text("模型价格").tag(3)
+                Text("数据来源").tag(0); Text("Agent 与 ACP").tag(1); Text("Git 归档").tag(2); Text("模型价格").tag(3); Text("首页").tag(4)
             }.pickerStyle(.segmented).frame(maxWidth: 600)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
@@ -26,7 +26,11 @@ struct SettingsView: View {
                     case 0: sources
                     case 1: agents
                     case 2: archive
-                    default: pricing
+                    case 3: pricing
+                    default:
+                        Card {
+                            Toggle("显示每周预算", isOn: Binding(get: { model.settings.showWeeklyBudget == true }, set: { model.settings.showWeeklyBudget = $0; model.persistSettings() })).toggleStyle(.switch)
+                        }
                     }
                 }.frame(maxWidth: 1050, alignment: .leading).padding(.vertical, 10)
             }

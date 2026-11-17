@@ -27,6 +27,24 @@ func testDirectory() throws -> URL {
     #expect(try store.session("one")?.messages.first?.text == "unique searchable text")
 }
 
+@Test func weeklyBudgetVisibilityDefaultsOffAndPersistsWithoutClearingAmount() throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    let path = root.appendingPathComponent("index.sqlite").path
+    #expect(try JSONValue.encode(Store(path: path).settings())["showWeeklyBudget"] != .bool(true))
+    var record = try JSONValue.encode(Settings()).dictionary
+    record.removeValue(forKey: "showWeeklyBudget")
+    record["weeklyBudget"] = .number(100)
+    let legacy = try JSONValue.object(record).decode(Settings.self)
+    #expect(try JSONValue.encode(legacy)["showWeeklyBudget"] != .bool(true))
+    for enabled in [true, false] {
+        record["showWeeklyBudget"] = .bool(enabled)
+        try Store(path: path).saveSettings(JSONValue.object(record).decode(Settings.self))
+        let restored = try Store(path: path).settings()
+        #expect(try JSONValue.encode(restored)["showWeeklyBudget"] == .bool(enabled))
+        #expect(restored.weeklyBudget == 100)
+    }
+}
+
 @Test func archiveCommitsOnlyManagedChangesAndProtectsEdits() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])

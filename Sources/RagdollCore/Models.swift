@@ -115,6 +115,7 @@ public struct Settings: Codable, Sendable {
     public var backgroundEnabled: Bool?
     public var excludedProjects: [String] = []
     public var weeklyBudget: Double?
+    public var showWeeklyBudget: Bool?
     public var prices: [String: Price] = [
         "gpt-6.1-sol": Price(input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5, reference: "https://developers.openai.com/api/docs/pricing"),
         "gpt-6.1-terra": Price(input: 1, output: 5, cacheRead: 0.05, cacheWrite: 1.25, reference: "https://developers.openai.com/api/docs/pricing"),

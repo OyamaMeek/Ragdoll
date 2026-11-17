@@ -30,23 +30,25 @@ struct DashboardView: View {
                     metric("总 Token", value: compact(stats.tokens), note: "\(stats.missingUsageSessions) 个会话缺少用量", icon: "chart.bar.xaxis")
                     metric("会话", value: "\(stats.sessions)", note: "本地日志与导入记录", icon: "bubble.left.and.bubble.right")
                 }
-                Card {
-                    HStack(spacing: 20) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("每周预算").font(.headline)
-                            Text(model.settings.weeklyBudget.map { "\(money(stats.weeklyCost)) / \(money($0))" } ?? "尚未设置预算").font(.title3.bold()).monospacedDigit()
-                            Text("滚动 168 小时 · 仅计可定价用量 · 80% 和 100% 提醒").font(.caption).foregroundStyle(.secondary)
+                if model.settings.showWeeklyBudget == true {
+                    Card {
+                        HStack(spacing: 20) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("每周预算").font(.headline)
+                                Text(model.settings.weeklyBudget.map { "\(money(stats.weeklyCost)) / \(money($0))" } ?? "尚未设置预算").font(.title3.bold()).monospacedDigit()
+                                Text("滚动 168 小时 · 仅计可定价用量 · 80% 和 100% 提醒").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if let total = model.settings.weeklyBudget, total > 0 {
+                                VStack(alignment: .leading) {
+                                    ProgressView(value: min(stats.weeklyCost / total, 1)).tint(stats.alert == "none" ? .blue : .orange)
+                                    if stats.alert != "none" { Text(stats.alert == "exceeded" ? "已达到预算" : "已使用超过 80% 预算").font(.caption).foregroundStyle(.orange) }
+                                }.frame(maxWidth: 220)
+                            }
+                            TextField("预算 USD", text: $budget).textFieldStyle(.roundedBorder).frame(width: 110)
+                            Button("保存") { saveBudget() }
+                            if model.settings.weeklyBudget != nil { Button("清除") { model.settings.weeklyBudget = nil; budget = ""; model.persistSettings() } }
                         }
-                        Spacer()
-                        if let total = model.settings.weeklyBudget, total > 0 {
-                            VStack(alignment: .leading) {
-                                ProgressView(value: min(stats.weeklyCost / total, 1)).tint(stats.alert == "none" ? .blue : .orange)
-                                if stats.alert != "none" { Text(stats.alert == "exceeded" ? "已达到预算" : "已使用超过 80% 预算").font(.caption).foregroundStyle(.orange) }
-                            }.frame(maxWidth: 220)
-                        }
-                        TextField("预算 USD", text: $budget).textFieldStyle(.roundedBorder).frame(width: 110)
-                        Button("保存") { saveBudget() }
-                        if model.settings.weeklyBudget != nil { Button("清除") { model.settings.weeklyBudget = nil; budget = ""; model.persistSettings() } }
                     }
                 }
                 HStack(alignment: .top, spacing: 16) {
