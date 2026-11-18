@@ -2,10 +2,14 @@ import SwiftUI
 import RagdollCore
 
 struct ConversationView: View {
+    private struct NewChatRequest: Identifiable {
+        let project: String
+        var id: String { project }
+    }
+
     @EnvironmentObject var model: AppModel
     var canCreate: Bool
-    @State private var newChat = false
-    @State private var newChatProject = ""
+    @State private var newChat: NewChatRequest?
     @State private var migrating = false
     @State private var prompt = ""
     @State private var messageLimit = 100
@@ -107,12 +111,11 @@ struct ConversationView: View {
         }
         .navigationTitle(canCreate ? "对话" : "会话")
         .onChange(of: model.selectedID) { _, _ in messageLimit = 100 }
-        .sheet(isPresented: $newChat) { NewChatView(project: newChatProject).environmentObject(model) }
+        .sheet(item: $newChat) { request in NewChatView(project: request.project).environmentObject(model) }
         .sheet(isPresented: $migrating) { if let session = model.selected { MigrationView(session: session).environmentObject(model) } }
     }
     private func createChat(in project: String) {
-        newChatProject = project
-        newChat = true
+        newChat = NewChatRequest(project: project)
     }
     private func historyList(_ sessions: [Session], selection: Binding<String?>) -> some View {
         List(selection: selection) {
