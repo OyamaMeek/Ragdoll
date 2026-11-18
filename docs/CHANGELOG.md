@@ -352,6 +352,6 @@
   - 模型弹层支持分组模型、旧版清单和模型相关配置。选择发送给当前 ACP 会话，界面使用 Agent 确认的配置更新。
   - 51 项 Swift 测试、23 项 Node 测试、TypeScript 检查、发布构建、预览签名和助手自检通过。隔离预览以真实 DeepSeek ACP 会话验证模型加载与推理强度更新。
 - **涉及文件** `Sources/Ragdoll/AgentOptionsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ComposerTests.swift`、`runtime/src/agents.ts`、`runtime/src/main.ts`、`runtime/test/integration.test.ts`、`memory/`、`docs/CHANGELOG.md`。
-- **Git 提交** 待提交。
+- **Git 提交** `a1bdcd1 feat(acp): discover models from active sessions`，已推送至 `origin/main`。
 
 ---
