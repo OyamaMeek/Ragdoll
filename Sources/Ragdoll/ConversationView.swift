@@ -5,45 +5,69 @@ struct ConversationView: View {
     @EnvironmentObject var model: AppModel
     var canCreate: Bool
     @State private var newChat = false
+    @State private var newChatProject = ""
     @State private var migrating = false
     @State private var prompt = ""
     @State private var messageLimit = 100
     @State private var sending = false
     @State private var attachments: [URL] = []
     var body: some View {
+        let sessions = model.filtered
+        let selection = Binding(get: { model.selectedID }, set: { id in
+            DispatchQueue.main.async { model.select(id) }
+        })
         HSplitView {
             VStack(spacing: 0) {
-                HStack {
-                    Text(canCreate ? "对话" : "历史会话").font(.headline)
-                    Spacer()
-                    if canCreate { Button { newChat = true } label: { Image(systemName: "square.and.pencil") }.buttonStyle(.plain).help("新建对话") }
-                }.padding(16)
-                TextField("搜索标题与消息", text: $model.query).textFieldStyle(.roundedBorder).padding(.horizontal, 12).padding(.bottom, 10)
+                VStack(alignment: .leading, spacing: 12) {
+                    if canCreate {
+                        Button { createChat(in: model.project) } label: {
+                            Label("新建对话", systemImage: "square.and.pencil")
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Text("历史会话").font(.headline)
+                    }
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
+                        TextField("搜索标题与消息", text: $model.query).textFieldStyle(.plain)
+                        if !model.query.isEmpty {
+                            Button("清除搜索", systemImage: "xmark.circle.fill") { model.query = "" }
+                                .labelStyle(.iconOnly).buttonStyle(.borderless).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 6)
+                    .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 7))
                     .onChange(of: model.query) { _, _ in do { try model.reload() } catch { model.error = error.localizedDescription } }
-                HStack {
-                    Picker("来源", selection: $model.source) {
-                        Text("全部").tag("all")
-                        ForEach(["codex", "claude", "dsh", "desktop", "acp"], id: \.self) { Text(sourceName($0)).tag($0) }
-                    }.labelsHidden()
-                    if !model.project.isEmpty || model.heatmapFilter != nil {
-                        Button("清除筛选") { model.project = ""; model.heatmapFilter = nil }.font(.caption)
+                    HStack {
+                        if canCreate {
+                            Text(model.query.isEmpty ? "项目" : "搜索结果").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        Picker("来源", selection: $model.source) {
+                            Text("全部来源").tag("all")
+                            ForEach(["codex", "claude", "dsh", "desktop", "acp"], id: \.self) { Text(sourceName($0)).tag($0) }
+                        }.labelsHidden().pickerStyle(.menu).controlSize(.small)
+                        if !model.project.isEmpty || model.heatmapFilter != nil {
+                            Button("清除筛选") { model.project = ""; model.heatmapFilter = nil }.font(.caption)
+                        }
                     }
-                }.padding(.horizontal, 12).padding(.bottom, 8)
-                List(selection: Binding(get: { model.selectedID }, set: { id in DispatchQueue.main.async { model.select(id); messageLimit = 100 } })) {
-                    ForEach(model.filtered) { session in
-                        VStack(alignment: .leading, spacing: 7) {
-                            HStack(alignment: .top) {
-                                Text(session.title).font(.system(size: 12, weight: .medium)).lineLimit(2)
-                                Spacer(minLength: 0)
-                                if model.running.contains(session.id) { ProgressView().controlSize(.mini) }
-                            }
-                            HStack { Text(sourceName(session.source)); Spacer(); Text(session.usage.isEmpty ? "用量未知" : compact(session.tokens)) }.font(.system(size: 10)).foregroundStyle(.secondary)
-                            Text(session.projectName).font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
-                        }.padding(.vertical, 7).tag(session.id)
-                    }
-                }.listStyle(.sidebar)
-                Text("\(model.filtered.count) 个会话").font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(12)
-            }.frame(minWidth: 245, idealWidth: 285, maxWidth: 340)
+                }.padding(12)
+                if canCreate {
+                    ConversationProjectList(
+                        sessions: sessions, selection: selection, selectedProject: model.selected?.project,
+                        running: model.running, searching: !model.query.isEmpty, createChat: createChat(in:)
+                    )
+                } else {
+                    historyList(sessions, selection: selection)
+                }
+                Divider()
+                Text("\(sessions.count) 个会话").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.vertical, 9)
+            }
+            .frame(minWidth: 245, idealWidth: 270, maxWidth: 340, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
             if let session = model.selected {
                 let groups = session.conversationGroups
                 VStack(spacing: 0) {
@@ -51,45 +75,80 @@ struct ConversationView: View {
                     Divider()
                     ScrollViewReader { proxy in
                         ScrollView {
-                            LazyVStack(alignment: .leading, spacing: 28) {
+                            LazyVStack(alignment: .leading, spacing: 24) {
                                 if groups.count > messageLimit { Button("加载更早的消息（剩余 \(groups.count - messageLimit) 项）") { messageLimit += 100 }.frame(maxWidth: .infinity) }
                                 ForEach(Array(groups.suffix(messageLimit))) { group in ConversationGroupView(group: group) }
                                 if groups.isEmpty { ContentUnavailableView("尚无消息", systemImage: "bubble.left", description: Text("恢复会话后可在下方输入消息。")) }
                                 Color.clear.frame(height: 1).id("bottom")
-                            }.padding(28).frame(maxWidth: 960).frame(maxWidth: .infinity)
+                            }.padding(28).frame(maxWidth: 880).frame(maxWidth: .infinity)
                         }
+                        .defaultScrollAnchor(.bottom, for: .initialOffset)
                         .onChange(of: model.selected?.messages.last?.text) { _, _ in if sending { proxy.scrollTo("bottom", anchor: .bottom) } }
-                        .onChange(of: model.selectedID) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     }
+                    .id(session.id)
                     if !session.warnings.isEmpty { Text(session.warnings.joined(separator: " · ")).font(.caption2).foregroundStyle(.orange).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 8) }
                     if session.source == "desktop" {
                         HStack { Text("官方导出记录 · 更新时需重新导入").foregroundStyle(.secondary); Spacer(); Button("打开原聊天") { model.openDesktop(session) } }.padding(20)
                     } else { composer(session) }
-                }.frame(minWidth: 550)
+                }.frame(minWidth: 550).background(Color(nsColor: .textBackgroundColor))
             } else {
-                VStack(spacing: 18) {
-                    Image(systemName: "bubble.left.and.bubble.right").font(.system(size: 40, weight: .ultraLight)).foregroundStyle(.secondary)
-                    Text(canCreate ? "开始一段对话" : "选择一个历史会话").font(.title2.weight(.medium))
-                    Text(canCreate ? "选择项目和 Agent，使用原生接口或 ACP 开始工作。" : "浏览本地记录，或导入 Claude 官方导出包。").font(.callout).foregroundStyle(.secondary)
-                    if canCreate { Button("新建对话") { newChat = true }.buttonStyle(.borderedProminent) }
-                    else { Button("导入 Claude 聊天…") { model.importDesktop() } }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                ContentUnavailableView {
+                    Label(canCreate ? "开始一段对话" : "选择一个历史会话", systemImage: "bubble.left.and.bubble.right")
+                } actions: {
+                    if canCreate {
+                        Button("新建对话") { createChat(in: model.project) }.buttonStyle(.borderedProminent)
+                    } else {
+                        Button("导入 Claude 聊天…") { model.importDesktop() }
+                    }
+                }
+                .frame(minWidth: 550, maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .textBackgroundColor))
             }
         }
         .navigationTitle(canCreate ? "对话" : "会话")
-        .sheet(isPresented: $newChat) { NewChatView().environmentObject(model) }
+        .onChange(of: model.selectedID) { _, _ in messageLimit = 100 }
+        .sheet(isPresented: $newChat) { NewChatView(project: newChatProject).environmentObject(model) }
         .sheet(isPresented: $migrating) { if let session = model.selected { MigrationView(session: session).environmentObject(model) } }
     }
+    private func createChat(in project: String) {
+        newChatProject = project
+        newChat = true
+    }
+    private func historyList(_ sessions: [Session], selection: Binding<String?>) -> some View {
+        List(selection: selection) {
+            ForEach(sessions) { session in
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .top) {
+                        Text(session.title).font(.system(size: 12, weight: .medium)).lineLimit(2)
+                        Spacer(minLength: 0)
+                        if model.running.contains(session.id) { ProgressView().controlSize(.mini) }
+                    }
+                    HStack { Text(sourceName(session.source)); Spacer(); Text(session.usage.isEmpty ? "用量未知" : compact(session.tokens)) }.font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(session.projectName).font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
+                }.padding(.vertical, 7).tag(session.id)
+            }
+        }.listStyle(.sidebar).scrollContentBackground(.hidden)
+    }
     func header(_ session: Session) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.title).font(.headline).lineLimit(1)
-                Text("\(sourceName(session.source)) / \(session.project.isEmpty ? "未关联项目" : session.project)").font(.caption).foregroundStyle(.secondary).lineLimit(1).textSelection(.enabled)
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(session.title).font(.system(size: 15, weight: .semibold)).lineLimit(1).help(session.title)
+                    .accessibilityAddTraits(.isHeader)
+                HStack(spacing: 8) {
+                    Text(sourceName(session.source))
+                    Label(session.projectName, systemImage: "folder")
+                        .help(session.project.isEmpty ? session.projectName : session.project)
+                }
+                .font(.caption).foregroundStyle(.secondary).lineLimit(1).textSelection(.enabled)
             }
             Spacer()
-            Button("迁移…") { migrating = true }.disabled(model.running.contains(session.id) || !model.ready)
-            if session.source != "desktop" { Button("恢复会话") { Task { await model.resumeSelected() } }.disabled(model.running.contains(session.id)) }
-        }.padding(16)
+            Button("迁移…", systemImage: "arrow.left.arrow.right") { migrating = true }
+                .buttonStyle(.borderless).disabled(model.running.contains(session.id) || !model.ready)
+            if session.source != "desktop" {
+                Button("恢复会话", systemImage: "arrow.counterclockwise") { Task { await model.resumeSelected() } }
+                    .disabled(model.running.contains(session.id))
+            }
+        }.padding(.horizontal, 20).padding(.vertical, 12)
     }
     func composer(_ session: Session) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -98,8 +157,8 @@ struct ConversationView: View {
             }
             ZStack(alignment: .topLeading) {
                 if prompt.isEmpty { Text("输入消息，继续此会话…").foregroundStyle(.tertiary).padding(.top, 8).padding(.leading, 5).allowsHitTesting(false) }
-                TextEditor(text: $prompt).font(.body).scrollContentBackground(.hidden)
-            }.frame(height: 72)
+                TextEditor(text: $prompt).font(.body).scrollContentBackground(.hidden).accessibilityLabel("消息")
+            }.frame(height: 64)
             HStack {
                 Button { attachments += model.chooseAttachments().filter { !attachments.contains($0) } } label: { Image(systemName: "paperclip") }.buttonStyle(.plain).help("添加附件，图片能力由 Agent 决定")
                 Image(systemName: "folder").foregroundStyle(.secondary)
@@ -107,15 +166,27 @@ struct ConversationView: View {
                 Spacer()
                 AgentOptionsView(session: session, prompt: $prompt)
                 if sending || model.running.contains(session.id) {
-                    Button { Task { await model.stop(); sending = false } } label: { Image(systemName: "stop.fill") }.help("停止当前执行")
+                    Button { Task { await model.stop(); sending = false } } label: {
+                        Image(systemName: "stop.fill").frame(width: 22, height: 22)
+                    }.buttonStyle(.bordered).buttonBorderShape(.circle)
+                        .accessibilityLabel("停止当前执行").help("停止当前执行")
                 } else {
                     Button {
                         let text = prompt, files = attachments; prompt = ""; attachments = []; sending = true
                         Task { if !(await model.send(text, attachments: files)) { if prompt.isEmpty { prompt = text }; if attachments.isEmpty { attachments = files } }; sending = false }
-                    } label: { Image(systemName: "arrow.up").fontWeight(.semibold).frame(width: 22, height: 22) }.buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command).disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready)
+                    } label: {
+                        Image(systemName: "arrow.up").fontWeight(.semibold).frame(width: 22, height: 22)
+                    }.buttonStyle(.borderedProminent).buttonBorderShape(.circle)
+                        .accessibilityLabel("发送").help("发送（⌘↩）").keyboardShortcut(.return, modifiers: .command)
+                        .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready)
                 }
             }
-        }.padding(14).background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(.primary.opacity(0.08))).frame(maxWidth: 904).padding(.horizontal, 28).padding(.bottom, 20).padding(.top, 10).frame(maxWidth: .infinity)
+        }
+        .padding(14)
+        .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
+        .overlay { RoundedRectangle(cornerRadius: 16).strokeBorder(.primary.opacity(0.10)).allowsHitTesting(false) }
+        .padding(.horizontal, 28).frame(maxWidth: 880).frame(maxWidth: .infinity)
+        .padding(.top, 10).padding(.bottom, 20)
     }
 }
 
@@ -180,8 +251,9 @@ struct MessageView: View {
             HStack(alignment: .top, spacing: 12) {
                 Spacer(minLength: 48)
                 VStack(alignment: .trailing, spacing: 6) {
-                    Text(message.text).font(.system(size: 13)).lineSpacing(5).textSelection(.enabled)
-                        .padding(.horizontal, 16).padding(.vertical, 12).background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14))
+                    Text(message.text).font(.body).lineSpacing(5).textSelection(.enabled)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(.tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
                     timestamp
                 }.frame(maxWidth: 620, alignment: .trailing)
                 avatar("person.fill", label: "你")
@@ -189,12 +261,12 @@ struct MessageView: View {
         } else {
             HStack(alignment: .top, spacing: 12) {
                 avatar("sparkles", label: "助手")
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 10) {
                         Text("助手").font(.caption.weight(.semibold))
                         timestamp
                     }.frame(height: 28)
-                    Text(.init(message.text)).textSelection(.enabled).font(.system(size: 13)).lineSpacing(5).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(.init(message.text)).textSelection(.enabled).font(.body).lineSpacing(5).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -211,6 +283,7 @@ struct MessageView: View {
 struct NewChatView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) var dismiss
+    let project: String
     @State private var agentID = ""
     @State private var cwd = ""
     @State private var starting = false
@@ -231,7 +304,10 @@ struct NewChatView: View {
                 starting = true
                 Task { let created = await model.startChat(agent: agent, cwd: cwd); starting = false; if created { dismiss() } }
             }.buttonStyle(.borderedProminent).disabled(starting || cwd.isEmpty || agentID.isEmpty) }
-        }.padding(28).frame(width: 540).onAppear { agentID = model.settings.agents.first?.id ?? ""; cwd = model.project.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : model.project }
+        }.padding(28).frame(width: 540).onAppear {
+            agentID = model.settings.agents.first?.id ?? ""
+            cwd = project.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : project
+        }
         .onChange(of: agentID) { _, _ in model.composerModel = "" }
     }
 }

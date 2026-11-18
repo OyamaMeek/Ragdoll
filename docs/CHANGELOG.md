@@ -316,3 +316,16 @@
 - **Git 提交**：`efdd80e docs(macos): record Stage Manager icon diagnostics`，已普通推送至 origin/main，远端 SHA 与本地一致；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-18 11:08] 改版对话工作区
+
+- **需求/问题描述**：
+  > 参考 Cherry Studio 的对话界面，左侧采用 Codex 的项目与子对话结构。
+- **实际实现的功能与改动**：
+  - 对话页使用紧凑导航，按完整工作目录组织对话。项目可折叠，搜索时展开命中项目，项目加号打开预填路径的新建表单。
+  - 聊天区使用紧凑标题、居中消息列、原生主题色和独立输入框，保留迁移、恢复、附件、Agent 选项、发送与停止。历史会话保留平铺列表。
+  - 49 项 Swift 测试、release 构建、临时签名、助手自检和隔离启动通过。使用 macOS 辅助功能验证项目展开折叠、打开子会话、搜索空结果、清除搜索及打开新建表单。未截图或调用原生 Agent 发送消息。
+- **涉及文件**：`Sources/Ragdoll/RootView.swift`、`Sources/Ragdoll/ConversationView.swift`、`Sources/Ragdoll/ConversationProjectList.swift`、`Tests/RagdollTests/ConversationProjectTests.swift`、`docs/USAGE.md`、`docs/CHANGELOG.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`。
+- **Git 提交**：待提交。
+
+---
