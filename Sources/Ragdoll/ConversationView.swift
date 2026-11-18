@@ -183,7 +183,7 @@ struct ConversationView: View {
                         Image(systemName: "arrow.up").fontWeight(.semibold).frame(width: 22, height: 22)
                     }.buttonStyle(.borderedProminent).buttonBorderShape(.circle)
                         .accessibilityLabel("发送").help("发送（⌘↩）").keyboardShortcut(.return, modifiers: .command)
-                        .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready)
+                        .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.ready || model.configuringChats.contains(session.id))
                 }
             }
         }

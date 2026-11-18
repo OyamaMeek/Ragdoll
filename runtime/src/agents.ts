@@ -40,9 +40,16 @@ interface AcpApp {
 interface Running {
   session: Session; agent: AgentConfig; busy: boolean; rpc?: RpcProcess; peer?: AcpPeer; claude?: Query;
   turnID?: string; finish?: () => void; tools?: ClientTools; deltaID?: string; replaying?: boolean;
-  codexInfo?: Data;
+  codexInfo?: Data; acpInfo?: Data;
   failure?: Error;
   fail?: (error: Error) => void; importing?: boolean; hasActivity?: boolean; writeQueue?: Promise<void>;
+}
+
+function acpConfiguration(update: Data): Data | undefined {
+  const type = string(update.sessionUpdate ?? update.type);
+  if ((type === 'config_option_update' || type === 'config_options_update') && Array.isArray(update.configOptions)) return { configOptions: update.configOptions };
+  if (type === 'available_commands_update' && Array.isArray(update.availableCommands)) return { availableCommands: update.availableCommands };
+  return undefined;
 }
 
 async function codexModelList(rpc: RpcProcess): Promise<Data> {
@@ -181,6 +188,10 @@ export class Agents {
     await writeFile(path + '.writing', JSON.stringify(r.session)); await rename(path + '.writing', path);
     this.emit('session', r.session);
   }
+  private publishACPConfiguration(r: Running, update: Data): void {
+    r.acpInfo = { ...r.acpInfo, ...update };
+    this.emit('agentConfiguration', { agentID: r.agent.id, conversationID: r.session.id, update });
+  }
   private update(r: Running, method: string, params: Data): void {
     const id = r.session.id;
     this.emit('chat', { conversationID: id, method, params });
@@ -213,7 +224,8 @@ export class Agents {
         }
         if (type.startsWith('tool_')) r.deltaID = undefined;
       }
-      if (type === 'config_option_update' || type === 'config_options_update' || type === 'available_commands_update') this.emit('agentConfiguration', { agentID: r.agent.id, conversationID: id, update });
+      const configuration = acpConfiguration(update);
+      if (configuration) this.publishACPConfiguration(r, configuration);
       if (type.includes('usage')) {
         const value = object(update.usage ?? update);
         if (typeof value.inputTokens === 'number' && typeof value.outputTokens === 'number') {
@@ -282,7 +294,8 @@ export class Agents {
     const agent = validateConfig(value.agent), cwd = string(value.cwd, homedir());
     await access(cwd);
     const prior = value.session ? object(value.session) as unknown as Session : undefined;
-    if (prior && this.running.has(prior.id)) return { session: this.running.get(prior.id)!.session };
+    const active = prior && this.running.get(prior.id);
+    if (active) return { session: active.session, ...(active.acpInfo ? { info: active.acpInfo } : {}) };
     if (prior && prior.source !== 'acp' && prior.source !== agent.kind) throw new Error('此历史会话必须使用原始工具恢复');
     if (prior?.instanceID && prior.instanceID !== agent.id) throw new Error('此会话属于其他 Agent 实例');
     const homeKey = agent.kind === 'codex' ? 'CODEX_HOME' : agent.kind === 'claude' ? 'CLAUDE_CONFIG_DIR' : 'DSH_HOME';
@@ -334,7 +347,14 @@ export class Agents {
     if (agent.kind === 'acp') {
       const ask: Ask = (m, p, signal) => { if (r.busy) r.hasActivity = true; return this.ask(m, { ...p, conversationID: session.id }, signal); };
       r.tools = new ClientTools(cwd, ask);
-      const peer = await openAcp(agent, cwd, ask, (m, p) => this.update(r, m, p), r.tools); r.peer = peer;
+      const setupUpdates = new Map<string, Data>();
+      const peer = await openAcp(agent, cwd, ask, (method, params) => {
+        const configuration = !r.acpInfo && method === 'session/update' ? acpConfiguration(object(params.update)) : undefined;
+        if (configuration) {
+          const id = string(params.sessionId);
+          setupUpdates.set(id, { ...setupUpdates.get(id), ...configuration });
+        } else this.update(r, method, params);
+      }, r.tools); r.peer = peer;
       try {
         if (prior) {
           const capabilities = object(peer.info.agentCapabilities ?? peer.info.capabilities);
@@ -351,7 +371,9 @@ export class Agents {
           if (!session.nativeID) throw new Error('ACP Agent 返回的会话缺少 ID');
         }
       } catch (error) { await peer.close(); await r.tools.close(); throw error; }
-      info = { ...peer.info, ...info, protocolVersion: peer.version };
+      r.acpInfo = { ...peer.info, ...setupUpdates.get(session.nativeID), ...info, protocolVersion: peer.version };
+      setupUpdates.clear();
+      info = r.acpInfo;
     }
     if (agent.kind === 'claude') { session.nativeID ||= randomUUID(); session.nativeStarted = prior ? prior.nativeStarted ?? true : false; }
     if (!prior) session.id = sessionKey(agent.kind, `${agent.kind === 'acp' ? agent.id : home}\0${session.nativeID}`);
@@ -463,12 +485,22 @@ export class Agents {
     this.running.delete(id); this.emit('state', { conversationID: id, state: 'stopped' });
     await this.persist(r);
   }
-  async configure(id: string, configId: string, value: string): Promise<unknown> {
+  async configure(id: string, configId: string, value: string | boolean): Promise<unknown> {
     const r = this.running.get(id); if (!r?.peer) throw new Error('此会话没有 ACP 配置项');
-    if (configId === '__legacy_mode') return r.peer.request('session/set_mode', { sessionId: r.session.nativeID, modeId: value });
-    if (configId === '__legacy_model') return r.peer.request('session/set_model', { sessionId: r.session.nativeID, modelId: value });
-    const parsed: string | boolean = value === 'true' ? true : value === 'false' ? false : value;
-    return r.peer.request('session/set_config_option', { sessionId: r.session.nativeID, configId, value: parsed, ...(r.peer.version === 2 ? { type: typeof parsed === 'boolean' ? 'boolean' : 'id' } : {}) });
+    if (r.busy) throw new Error('请等待当前执行结束后再更改 ACP 配置');
+    const sessionId = r.session.nativeID;
+    if ((configId === '__legacy_mode' || configId === '__legacy_model') && typeof value !== 'string') throw new Error('ACP 模型和模式 ID 必须是文本');
+    if (configId === '__legacy_mode') return r.peer.request('session/set_mode', { sessionId, modeId: value });
+    if (configId === '__legacy_model') {
+      const result = await r.peer.request('session/set_model', { sessionId, modelId: value });
+      this.publishACPConfiguration(r, { models: { ...object(r.acpInfo?.models), currentModelId: value } });
+      return result;
+    }
+    const type = typeof value === 'boolean' ? 'boolean' : 'id';
+    const result = object(await r.peer.request('session/set_config_option', { sessionId, configId, value, ...(r.peer.version === 2 || type === 'boolean' ? { type } : {}) }));
+    if (!Array.isArray(result.configOptions)) throw new Error('ACP Agent 未返回确认的配置清单');
+    this.publishACPConfiguration(r, { configOptions: result.configOptions });
+    return result;
   }
   async list(agentValue: unknown, cwd: string, cursor?: string): Promise<unknown> {
     const agent = validateConfig(agentValue), tools = new ClientTools(cwd, this.ask);

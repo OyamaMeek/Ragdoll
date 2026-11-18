@@ -28,6 +28,7 @@ final class AppModel: ObservableObject {
     @Published var heatmapFilter: Date?
     @Published var selectedID: String?
     @Published var running: Set<String> = []
+    @Published private(set) var configuringChats: Set<String> = []
     @Published var scanning = false
     @Published var archiving = false
     @Published var ready = false
@@ -58,6 +59,7 @@ final class AppModel: ObservableObject {
     private var reloadTask: Task<Void, Never>?
     private var archiveTask: Task<Void, Never>?
     private var monitorTask: Task<Void, Never>?
+    private var resumingChats: [String: Task<Bool, Never>] = [:]
     private var dirtySince: Date?
     private var dirtyGeneration = 0
     private var initialized = false
@@ -135,6 +137,9 @@ final class AppModel: ObservableObject {
             case "state":
                 let id = data["conversationID"].string
                 if data["state"].string == "running" { running.insert(id) } else { running.remove(id) }
+                if data["state"].string == "stopped", let info = conversationInfo[id], info["protocolVersion"] != .null {
+                    conversationInfo.removeValue(forKey: id)
+                }
                 if !data["message"].string.isEmpty { error = data["message"].string }
                 if data["state"].string == "idle" { Task { await refresh() } }
             case "chat":
@@ -150,13 +155,13 @@ final class AppModel: ObservableObject {
                 warnings.append(text)
                 collectLoginLinks(data)
             case "agentConfiguration":
-                let id = data["conversationID"].string.isEmpty ? selectedID ?? "" : data["conversationID"].string
+                let id = data["conversationID"].string
+                guard !id.isEmpty else { return }
                 var info = (conversationInfo[id] ?? .object([:])).dictionary
                 let update = data["update"]
-                if update["configOptions"] != .null { info["configOptions"] = update["configOptions"] }
-                if update["availableCommands"] != .null { info["availableCommands"] = update["availableCommands"] }
+                for key in ["configOptions", "models", "availableCommands"] where update[key] != .null { info[key] = update[key] }
                 conversationInfo[id] = .object(info)
-            case "disconnected": ready = false; running.removeAll(); error = data.string
+            case "disconnected": ready = false; running.removeAll(); conversationInfo.removeAll(); error = data.string
             default: break
             }
         } catch { self.error = error.localizedDescription }
@@ -225,8 +230,16 @@ final class AppModel: ObservableObject {
         session.project.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : session.project
     }
     @discardableResult private func resume(_ session: Session, model: String) async -> Bool {
+        if let resuming = resumingChats[session.id] { return await resuming.value }
         guard let agent = agent(for: session) else { error = "请先配置此会话使用的 Agent"; return false }
-        return await startChat(agent: agent, cwd: directory(for: session), resume: session, model: agent.kind == "codex" ? "" : model)
+        let resuming = Task { await startChat(agent: agent, cwd: directory(for: session), resume: session, model: agent.kind == "codex" ? "" : model) }
+        resumingChats[session.id] = resuming
+        defer { resumingChats.removeValue(forKey: session.id) }
+        return await resuming.value
+    }
+    func loadACPModels(for session: Session) async -> Bool {
+        if let info = conversationInfo[session.id], info["protocolVersion"] != .null { return true }
+        return await resume(session, model: "")
     }
     func loadCodexModels(for session: Session) async throws {
         if conversationInfo[session.id]?["models"].dictionary["data"] != nil { return }
@@ -239,7 +252,7 @@ final class AppModel: ObservableObject {
         if conversationInfo[session.id]?["models"].dictionary["data"] == nil { conversationInfo[session.id] = result }
     }
     func send(_ text: String, attachments: [URL] = []) async -> Bool {
-        guard let selected else { return false }
+        guard let selected, !configuringChats.contains(selected.id) else { return false }
         if selected.source == "desktop" { openDesktop(selected); return false }
         let selection = composerSelections[selected.id] ?? ComposerSelection()
         if !running.contains(selected.id), !(await resume(selected, model: selection.model)) { return false }
@@ -451,13 +464,11 @@ final class AppModel: ObservableObject {
             NSWorkspace.shared.open(URL(fileURLWithPath: result["terminalScript"].string))
         } catch { self.error = error.localizedDescription }
     }
-    func configure(_ configID: String, value: String) async {
-        guard let id = selectedID else { return }
+    func configure(_ id: String, configID: String, value: JSONValue) async {
+        guard !running.contains(id), configuringChats.insert(id).inserted else { return }
+        defer { configuringChats.remove(id) }
         do {
-            let result = try await bridge.request("chat.configure", ["id": .string(id), "configID": .string(configID), "value": .string(value)])
-            if result["configOptions"] != .null {
-                var info = (conversationInfo[id] ?? .object([:])).dictionary; info["configOptions"] = result["configOptions"]; conversationInfo[id] = .object(info)
-            }
+            _ = try await bridge.request("chat.configure", ["id": .string(id), "configID": .string(configID), "value": value])
         } catch { self.error = error.localizedDescription }
     }
     func listNative(_ agent: AgentConfig, project: String, more: Bool = false) async {

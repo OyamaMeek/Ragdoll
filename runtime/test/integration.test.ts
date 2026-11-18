@@ -63,6 +63,29 @@ test('real Codex app-server initializes and lists models without sending a promp
   } finally { await agents.close(); await rm(root, { recursive: true, force: true }); }
 });
 
+test('real DeepSeek ACP advertises its models and confirms session configuration', { skip: process.env.RAGDOLL_ACP_MODELS !== '1', timeout: 60000 }, async () => {
+  const root = directory(); await mkdir(root, { recursive: true });
+  const events: unknown[] = [];
+  const agents = new Agents(join(root, 'cache'), (event, data) => { if (event === 'agentConfiguration') events.push(data); }, async () => ({ allowed: false }));
+  try {
+    const base = (await defaultAgents()).find(agent => agent.kind === 'dsh')!;
+    const agent = { ...base, id: 'acp-model-check', kind: 'acp', args: ['--profile', 'acp'], env: { DSH_HOME: join(root, 'home') } };
+    await mkdir(agent.env.DSH_HOME);
+    const opened = await agents.start({ agent, cwd: root });
+    const session = opened.session as Session;
+    const options = (opened.info as { configOptions: { id: string; category: string; currentValue: string; options: ({ value: string } | { options: { value: string }[] })[] }[] }).configOptions;
+    const model = options.find(option => option.category === 'model')!;
+    const models = model.options.flatMap(option => 'options' in option ? option.options : [option]);
+    assert.ok(models.some(option => option.value === model.currentValue));
+    const modelID = models.find(option => option.value !== model.currentValue)?.value ?? model.currentValue;
+    await agents.configure(session.id, model.id, modelID);
+    assert.ok(events.some(data => (data as { conversationID: string }).conversationID === session.id));
+    const reopened = await agents.start({ agent, cwd: root, session });
+    const confirmed = (reopened.info as { configOptions: typeof options }).configOptions;
+    assert.equal(confirmed.find(option => option.id === model.id)?.currentValue, modelID);
+  } finally { await agents.close(); await rm(root, { recursive: true, force: true }); }
+});
+
 test('official registry installs a real Claude ACP binary and negotiates its protocol', { skip: process.env.RAGDOLL_REGISTRY_INTEGRATION !== '1', timeout: 240000 }, async () => {
   const root = resolve(import.meta.dirname, '../../.agent/registry-integration');
   await mkdir(root, { recursive: true });

@@ -203,3 +203,10 @@
 - [x] TypeScript 类型检查、允许的 Node 测试（22 项通过，7 项跳过）、release 构建、预览签名和助手自检通过。
 - [x] 50 项 Swift 测试通过。隔离预览通过辅助功能验证在历史会话恢复前打开真实模型清单、选择模型、设置推理强度和切回默认。
 - [x] `0b52738 feat(chat): add Codex model and reasoning picker` 已普通推送至 `origin/main`，并核对远端提交。
+
+## 读取 ACP 会话模型（2026-11-18）
+
+- [x] 核查 ACP v1/v2 文档、固定 SDK 和实际 DeepSeek Harness 的分组模型及强度选项。
+- [x] Swift 回归先因缺少模型解析而失败，真实 ACP 回归先因未转发 Agent 的确认响应而失败。现已接入会话清单、选择和更新。
+- [x] 51 项 Swift 测试、23 项 Node 测试、TypeScript 检查、发布构建、签名与助手自检通过。隔离预览从已保存的 DeepSeek ACP 会话自动发现模型，并在 Agent 确认后更新推理强度。
+- [ ] 提交并普通推送。

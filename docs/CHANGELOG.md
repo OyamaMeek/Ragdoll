@@ -342,3 +342,16 @@
 - **Git 提交** `0b52738 feat(chat): add Codex model and reasoning picker`，已推送至 `origin/main`。
 
 ---
+
+## [2026-11-18 21:14] ACP 会话自动读取可用模型
+
+- **需求/问题描述**
+  > 模型选择器自动读取 ACP 可调用的模型。
+- **实际实现的功能与改动**
+  - ACP 历史会话打开模型选择器时自动连接原 Agent。新建、恢复和配置更新均读取当前会话声明的配置。
+  - 模型弹层支持分组模型、旧版清单和模型相关配置。选择发送给当前 ACP 会话，界面使用 Agent 确认的配置更新。
+  - 51 项 Swift 测试、23 项 Node 测试、TypeScript 检查、发布构建、预览签名和助手自检通过。隔离预览以真实 DeepSeek ACP 会话验证模型加载与推理强度更新。
+- **涉及文件** `Sources/Ragdoll/AgentOptionsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ComposerTests.swift`、`runtime/src/agents.ts`、`runtime/src/main.ts`、`runtime/test/integration.test.ts`、`memory/`、`docs/CHANGELOG.md`。
+- **Git 提交** 待提交。
+
+---

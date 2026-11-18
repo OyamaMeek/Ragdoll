@@ -88,7 +88,10 @@ async function handle(method: string, p: Data): Promise<unknown> {
     return {};
   }
   if (method === 'chat.stop') { await agents.stop(string(p.id)); return {}; }
-  if (method === 'chat.configure') return agents.configure(string(p.id), string(p.configID), string(p.value));
+  if (method === 'chat.configure') {
+    if (typeof p.value !== 'string' && typeof p.value !== 'boolean') throw new Error('ACP 配置值必须是文本或布尔值');
+    return agents.configure(string(p.id), string(p.configID), p.value);
+  }
   if (method === 'chat.list') return agents.list(p.agent, string(p.cwd, homedir()), string(p.cursor) || undefined);
   if (method === 'chat.import') return agents.importNative(p.agent, object(p.session), string(p.cwd, homedir()));
   if (method === 'native.login') {
