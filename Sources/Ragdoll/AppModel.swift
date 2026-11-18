@@ -10,6 +10,13 @@ struct Approval: Identifiable {
     var params: JSONValue
 }
 
+struct ComposerSelection {
+    var model = "" {
+        didSet { if model != oldValue { effort = "" } }
+    }
+    var effort = ""
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var settings = Settings()
@@ -41,7 +48,7 @@ final class AppModel: ObservableObject {
     @Published var busyAgents: Set<String> = []
     @Published var archiveStatus = "尚未选择归档仓库"
     @Published var lastArchive: Date?
-    @Published var composerModel = ""
+    @Published var composerSelections: [String: ComposerSelection] = [:]
     @Published var toolEvents: [String: [JSONValue]] = [:]
     @Published var backgroundStatus = "未启用后台服务"
     @Published var syncStatus = "未启用远端推送"
@@ -189,15 +196,19 @@ final class AppModel: ObservableObject {
         if let i = settings.agents.firstIndex(where: { $0.id == agent.id }) { settings.agents[i] = safe } else { settings.agents.append(safe) }
         try saveSettings()
     }
-    @discardableResult func startChat(agent: AgentConfig, cwd: String, resume: Session? = nil) async -> Bool {
+    @discardableResult func startChat(agent: AgentConfig, cwd: String, resume: Session? = nil, model: String = "") async -> Bool {
         guard ready else { return false }
         do {
             var params: [String: JSONValue] = ["agent": try .encode(hydrated(agent)), "cwd": .string(cwd)]
             if let resume { params["session"] = try .encode(resume) }
-            if agent.kind != "acp" && !composerModel.isEmpty { params["model"] = .string(composerModel) }
+            if agent.kind != "acp" && !model.isEmpty { params["model"] = .string(model) }
             let result = try await bridge.request("chat.start", params)
             let session = try result["session"].decode(Session.self)
-            _ = try store?.save(session); try reload(); select(session.id)
+            _ = try store?.save(session); try reload()
+            if resume == nil && agent.kind != "acp" && !model.isEmpty {
+                composerSelections[session.id] = ComposerSelection(model: model)
+            }
+            if resume == nil || selectedID == resume?.id { select(session.id) }
             if result["info"] != .null { agentInfo[agent.id] = result["info"]; conversationInfo[session.id] = result["info"] }
             return true
         } catch { self.error = error.localizedDescription; return false }
@@ -205,17 +216,40 @@ final class AppModel: ObservableObject {
     func resumeSelected() async {
         guard let selected else { return }
         if selected.source == "desktop" { openDesktop(selected); return }
-        let agent = settings.agents.first { $0.id == selected.instanceID } ?? settings.agents.first { $0.kind == selected.source }
-        guard let agent else { error = "请先配置此会话使用的 Agent"; return }
-        await startChat(agent: agent, cwd: selected.project.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : selected.project, resume: selected)
+        await resume(selected, model: composerSelections[selected.id]?.model ?? "")
+    }
+    private func agent(for session: Session) -> AgentConfig? {
+        settings.agents.first { $0.id == session.instanceID } ?? settings.agents.first { $0.kind == session.source }
+    }
+    private func directory(for session: Session) -> String {
+        session.project.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : session.project
+    }
+    @discardableResult private func resume(_ session: Session, model: String) async -> Bool {
+        guard let agent = agent(for: session) else { error = "请先配置此会话使用的 Agent"; return false }
+        return await startChat(agent: agent, cwd: directory(for: session), resume: session, model: agent.kind == "codex" ? "" : model)
+    }
+    func loadCodexModels(for session: Session) async throws {
+        if conversationInfo[session.id]?["models"].dictionary["data"] != nil { return }
+        guard let config = agent(for: session), config.kind == "codex" else {
+            throw NSError(domain: "Ragdoll.Codex", code: 1, userInfo: [NSLocalizedDescriptionKey: "请先配置此会话使用的 Codex Agent"])
+        }
+        var configWithHome = try hydrated(config)
+        if !session.home.isEmpty { configWithHome.env["CODEX_HOME"] = session.home }
+        let result = try await bridge.request("probe", ["agent": try .encode(configWithHome), "cwd": .string(directory(for: session))])
+        if conversationInfo[session.id]?["models"].dictionary["data"] == nil { conversationInfo[session.id] = result }
     }
     func send(_ text: String, attachments: [URL] = []) async -> Bool {
         guard let selected else { return false }
         if selected.source == "desktop" { openDesktop(selected); return false }
-        if !running.contains(selected.id) { await resumeSelected() }
-        guard let id = self.selected?.id else { return false }
-        do { _ = try await bridge.request("chat.send", ["id": .string(id), "text": .string(text), "model": .string(selected.source == "acp" ? "" : composerModel), "attachments": try .encode(attachments.map(\.path))], timeout: 0); return true }
-        catch { self.error = error.localizedDescription; running.remove(id); return false }
+        let selection = composerSelections[selected.id] ?? ComposerSelection()
+        if !running.contains(selected.id), !(await resume(selected, model: selection.model)) { return false }
+        do {
+            var params: [String: JSONValue] = ["id": .string(selected.id), "text": .string(text), "attachments": try .encode(attachments.map(\.path))]
+            if selected.source != "acp" && !selection.model.isEmpty { params["model"] = .string(selection.model) }
+            if selected.source == "codex" && !selection.effort.isEmpty { params["effort"] = .string(selection.effort) }
+            _ = try await bridge.request("chat.send", params, timeout: 0)
+            return true
+        } catch { self.error = error.localizedDescription; running.remove(selected.id); return false }
     }
     func stop() async {
         guard let id = selectedID else { return }

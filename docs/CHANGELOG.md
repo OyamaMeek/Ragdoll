@@ -329,3 +329,16 @@
 - **Git 提交**：`6bbd748 feat(chat): organize conversations by project`、`7a576f8 fix(chat): prefill the selected project on first open`。
 
 ---
+
+## [2026-11-18 12:04] 输入框模型与推理强度选择
+
+- **需求**
+  > 在会话输入框右下角提供模型与推理强度选择。
+- **改动**
+  - 历史会话和对话的 Codex 输入框提供原生模型弹层。打开时按会话的 Agent、工作目录和 Codex home 读取实际清单。
+  - 各会话保留独立选择。切换模型后清除原强度覆写，按新模型提供的档位显示。发送时把模型和强度传入 Codex，选择默认时恢复会话默认值。
+  - 50 项 Swift 测试、22 项 Node 测试、TypeScript 检查、release 构建、预览签名和助手自检通过。隔离预览验证了历史会话恢复前选择模型、推理强度和默认项。未发送生成请求或截图。
+- **涉及文件** `Sources/Ragdoll/AgentOptionsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/ConversationView.swift`、`Tests/RagdollTests/ComposerTests.swift`、`runtime/src/agents.ts`、`runtime/src/main.ts`、`runtime/test/integration.test.ts`、`memory/`、`docs/CHANGELOG.md`。
+- **Git 提交** 待提交。
+
+---

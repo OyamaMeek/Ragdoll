@@ -149,7 +149,7 @@ struct ConversationView: View {
                 .buttonStyle(.borderless).disabled(model.running.contains(session.id) || !model.ready)
             if session.source != "desktop" {
                 Button("恢复会话", systemImage: "arrow.counterclockwise") { Task { await model.resumeSelected() } }
-                    .disabled(model.running.contains(session.id))
+                    .disabled(sending || model.running.contains(session.id))
             }
         }.padding(.horizontal, 20).padding(.vertical, 12)
     }
@@ -168,6 +168,8 @@ struct ConversationView: View {
                 Text(session.projectName).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 AgentOptionsView(session: session, prompt: $prompt)
+                    .id(session.id)
+                    .disabled(sending)
                 if sending || model.running.contains(session.id) {
                     Button { Task { await model.stop(); sending = false } } label: {
                         Image(systemName: "stop.fill").frame(width: 22, height: 22)
@@ -289,6 +291,7 @@ struct NewChatView: View {
     let project: String
     @State private var agentID = ""
     @State private var cwd = ""
+    @State private var initialModel = ""
     @State private var starting = false
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -299,19 +302,19 @@ struct NewChatView: View {
                     ForEach(model.settings.agents) { agent in Text("\(agent.name) · \(agent.kind == "acp" ? "ACP" : "原生")").tag(agent.id) }
                 }
                 HStack { TextField("工作目录", text: $cwd); Button("选择…") { if let path = model.chooseProject() { cwd = path } } }
-                if model.settings.agents.first(where: { $0.id == agentID })?.kind != "acp" { TextField("模型（留空使用默认值）", text: $model.composerModel) }
+                if model.settings.agents.first(where: { $0.id == agentID })?.kind != "acp" { TextField("模型（留空使用默认值）", text: $initialModel) }
                 else { Text("创建后可选择 Agent 提供的模型与权限选项").font(.caption).foregroundStyle(.secondary) }
             }
             HStack { Button("取消") { dismiss() }.keyboardShortcut(.cancelAction); Spacer(); if starting { ProgressView().controlSize(.small) }; Button("创建对话") {
                 guard let agent = model.settings.agents.first(where: { $0.id == agentID }) else { return }
                 starting = true
-                Task { let created = await model.startChat(agent: agent, cwd: cwd); starting = false; if created { dismiss() } }
+                Task { let created = await model.startChat(agent: agent, cwd: cwd, model: initialModel); starting = false; if created { dismiss() } }
             }.buttonStyle(.borderedProminent).disabled(starting || cwd.isEmpty || agentID.isEmpty) }
         }.padding(28).frame(width: 540).onAppear {
             agentID = model.settings.agents.first?.id ?? ""
             cwd = project.isEmpty ? FileManager.default.homeDirectoryForCurrentUser.path : project
         }
-        .onChange(of: agentID) { _, _ in model.composerModel = "" }
+        .onChange(of: agentID) { _, _ in initialModel = "" }
     }
 }
 

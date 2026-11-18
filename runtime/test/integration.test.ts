@@ -4,7 +4,7 @@ import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ClientTools } from '../src/client-tools.ts';
-import { Agents, defaultAgents } from '../src/agents.ts';
+import { Agents, codexTurnOptions, defaultAgents } from '../src/agents.ts';
 import { registry, install } from '../src/registry.ts';
 import type { Session } from '../src/types.ts';
 
@@ -46,7 +46,20 @@ test('real Codex app-server initializes and lists models without sending a promp
   try {
     const codex = (await defaultAgents()).find(a => a.kind === 'codex')!;
     const result = await agents.probe(codex, resolve(import.meta.dirname, '../..'));
-    assert.ok(result.models);
+    assert.ok('model' in result && 'reasoningEffort' in result);
+    const models = result.models as { data: { model: string; supportedReasoningEfforts: { reasoningEffort: string }[] }[]; nextCursor: string | null };
+    assert.equal(models.nextCursor, null);
+    assert.ok(models.data.some(model => model.model && model.supportedReasoningEfforts.some(option => option.reasoningEffort)));
+
+    const { info } = await agents.start({ agent: codex, cwd: root });
+    const defaults = info as Record<string, unknown>;
+    const alternative = models.data.find(model => model.model !== defaults.model && model.supportedReasoningEfforts.length > 0);
+    assert.ok(alternative);
+    const effort = alternative.supportedReasoningEfforts[0].reasoningEffort;
+    assert.deepEqual(codexTurnOptions(defaults, alternative.model, effort), { model: alternative.model, effort });
+    assert.equal(codexTurnOptions(defaults).model, defaults.model);
+    if (typeof defaults.reasoningEffort === 'string') assert.equal(codexTurnOptions(defaults).effort, defaults.reasoningEffort);
+    assert.throws(() => codexTurnOptions(defaults, alternative.model, 'unsupported-effort'), /不支持此推理强度/);
   } finally { await agents.close(); await rm(root, { recursive: true, force: true }); }
 });
 

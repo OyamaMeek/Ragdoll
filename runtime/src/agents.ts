@@ -40,8 +40,37 @@ interface AcpApp {
 interface Running {
   session: Session; agent: AgentConfig; busy: boolean; rpc?: RpcProcess; peer?: AcpPeer; claude?: Query;
   turnID?: string; finish?: () => void; tools?: ClientTools; deltaID?: string; replaying?: boolean;
+  codexInfo?: Data;
   failure?: Error;
   fail?: (error: Error) => void; importing?: boolean; hasActivity?: boolean; writeQueue?: Promise<void>;
+}
+
+async function codexModelList(rpc: RpcProcess): Promise<Data> {
+  const data: unknown[] = [];
+  const cursors = new Set<string>();
+  let cursor = '';
+  do {
+    const page = object(await rpc.request('model/list', cursor ? { cursor } : {}));
+    if (!Array.isArray(page.data)) throw new Error('Codex 返回了无效的模型清单');
+    data.push(...page.data);
+    cursor = string(page.nextCursor);
+    if (cursors.has(cursor)) throw new Error('Codex 模型清单返回了重复的分页游标');
+    cursors.add(cursor);
+  } while (cursor);
+  return { data, nextCursor: null };
+}
+
+export function codexTurnOptions(info: Data, model?: string, effort?: string): { model?: string; effort?: string } {
+  const defaultModel = string(info.model);
+  const chosenModel = model || defaultModel;
+  const catalog = object(info.models).data;
+  const entry = Array.isArray(catalog) ? catalog.map(object).find(item => item.model === chosenModel) : undefined;
+  if (effort && (!Array.isArray(entry?.supportedReasoningEfforts)
+    || !entry.supportedReasoningEfforts.some(option => object(option).reasoningEffort === effort))) {
+    throw new Error('所选 Codex 模型不支持此推理强度');
+  }
+  const chosenEffort = effort || (chosenModel === defaultModel ? string(info.reasoningEffort) : '') || string(entry?.defaultReasoningEffort);
+  return { model: chosenModel || undefined, effort: chosenEffort || undefined };
 }
 
 export async function defaultAgents(): Promise<AgentConfig[]> {
@@ -236,8 +265,8 @@ export class Agents {
       try {
         const info = object(await rpc.request('initialize', { clientInfo: { name: 'ragdoll', version: '0.1.0' }, capabilities: { experimentalApi: true } }));
         rpc.notify('initialized');
-        const models = await rpc.request('model/list', {});
-        return { ...info, models };
+        const config = object(object(await rpc.request('config/read', { cwd })).config);
+        return { ...info, model: config.model ?? null, reasoningEffort: config.model_reasoning_effort ?? null, models: await codexModelList(rpc) };
       } finally { await rpc.close(); }
     }
     if (agent.kind === 'dsh') {
@@ -277,7 +306,9 @@ export class Agents {
       try {
         await rpc.request('initialize', { clientInfo: { name: 'ragdoll', version: '0.1.0' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized');
         info = object(await rpc.request(prior ? 'thread/resume' : 'thread/start', { ...(prior ? { threadId: prior.nativeID } : {}), cwd, approvalPolicy: 'on-request', sandbox: 'workspace-write', ...(value.model ? { model: value.model } : {}) }));
-        info = { ...info, models: await rpc.request('model/list', {}) };
+        const models = await codexModelList(rpc);
+        r.codexInfo = { model: info.model, reasoningEffort: info.reasoningEffort, models };
+        info = { ...info, models };
         const catalog = object(info.models).data;
         if (!value.model && typeof info.model === 'string' && Array.isArray(catalog) && !catalog.some(m => object(m).model === info.model)) session.warnings.push('当前配置模型未出现在工具的可用目录中，请从模型菜单选择可用模型后发送。');
         const id = string(object(info.thread).id);
@@ -338,11 +369,13 @@ export class Agents {
     return { session, info };
   }
 
-  async send(id: string, text: string, model?: string, attachments: unknown = []): Promise<void> {
+  async send(id: string, text: string, model?: string, attachments: unknown = [], effort?: string): Promise<void> {
     const r = this.running.get(id);
     if (!r) throw new Error('请先打开或恢复会话');
     if (r.busy) throw new Error('此会话正在执行，请等待或停止当前执行');
     if (!text.trim()) throw new Error('消息不能为空');
+    if (effort && !r.codexInfo) throw new Error('此 Agent 不支持选择 Codex 推理强度');
+    const codexOptions = r.codexInfo ? codexTurnOptions(r.codexInfo, model, effort) : {};
     if (!Array.isArray(attachments) || attachments.some(p => typeof p !== 'string')) throw new Error('附件列表无效');
     const files = await Promise.all((attachments as string[]).map(async path => {
       const mime = ({ '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' } as Record<string, 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'>)[extname(path).toLowerCase()];
@@ -374,7 +407,7 @@ export class Agents {
         if (r.peer.version === 2) await Promise.race([completed, r.peer.closed.then(() => { throw new Error('ACP 连接中断，运行结果尚未确认'); })]);
       } else if (r.agent.kind === 'codex') {
         const completed = new Promise<void>((resolve, reject) => { r.finish = resolve; r.fail = reject; });
-        const result = object(await r.rpc!.request('turn/start', { threadId: r.session.nativeID, input: [{ type: 'text', text: withPaths }, ...files.filter(f => f.mime).map(f => ({ type: 'localImage', path: f.path }))], ...(model ? { model } : {}) }));
+        const result = object(await r.rpc!.request('turn/start', { threadId: r.session.nativeID, input: [{ type: 'text', text: withPaths }, ...files.filter(f => f.mime).map(f => ({ type: 'localImage', path: f.path }))], ...codexOptions }));
         r.turnID = string(object(result.turn).id); await completed;
       } else if (r.agent.kind === 'dsh') {
         await r.rpc!.request('session/prompt', { sessionId: r.session.nativeID, contentBlocks: [{ type: 'text', text: withPaths }, ...files.filter(f => f.mime).map(f => ({ type: 'image', data: f.data, mimeType: f.mime }))] });

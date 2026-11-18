@@ -82,7 +82,11 @@ async function handle(method: string, p: Data): Promise<unknown> {
   if (method === 'uninstall') { await uninstall(p.agent as AgentConfig, join(root, 'tools')); return {}; }
   if (method === 'probe') return agents.probe(p.agent, string(p.cwd, homedir()));
   if (method === 'chat.start') return agents.start(p);
-  if (method === 'chat.send') { await agents.send(string(p.id), string(p.text), string(p.model) || undefined, p.attachments ?? []); return {}; }
+  if (method === 'chat.send') {
+    if (p.effort !== undefined && typeof p.effort !== 'string') throw new Error('推理强度必须是文本');
+    await agents.send(string(p.id), string(p.text), string(p.model) || undefined, p.attachments ?? [], p.effort);
+    return {};
+  }
   if (method === 'chat.stop') { await agents.stop(string(p.id)); return {}; }
   if (method === 'chat.configure') return agents.configure(string(p.id), string(p.configID), string(p.value));
   if (method === 'chat.list') return agents.list(p.agent, string(p.cwd, homedir()), string(p.cursor) || undefined);
