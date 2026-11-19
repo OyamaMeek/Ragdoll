@@ -355,3 +355,15 @@
 - **Git 提交** `a1bdcd1 feat(acp): discover models from active sessions`，已推送至 `origin/main`。
 
 ---
+
+## [2026-11-19 09:48] 修复原生 Codex 模型目录
+
+- **需求/问题描述**
+  > 模型选择器应自动读取当前 Codex 的可用模型。
+- **实际实现的功能与改动**
+  - 默认 Codex Agent 优先使用 ChatGPT 桌面版随附的 Codex，模型查询、会话新建与恢复、迁移共用同一个进程入口。保留显式命令和 PATH 配置。
+  - 真实 app-server 回归先失败后通过。预览包的内置运行时查询到 10 个模型，包含 `gpt-6.2-sol`，并验证显式配置。51 项 Swift 测试、21 项常规 Node 测试、1 项真实 Codex 回归、TypeScript 检查、发布编译及临时签名预览自检通过。原 Apple Development 证书被系统判定已撤销。
+- **涉及文件** `runtime/src/rpc.ts`、`runtime/src/agents.ts`、`runtime/src/migration.ts`、`runtime/test/integration.test.ts`、`memory/`、`docs/CHANGELOG.md`。
+- **Git 提交** 待提交。
+
+---

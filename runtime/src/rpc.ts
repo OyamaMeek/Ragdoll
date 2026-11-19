@@ -1,13 +1,26 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import { constants } from 'node:fs';
+import { access } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { object, string } from './types.ts';
-import type { Data } from './types.ts';
+import type { AgentConfig, Data } from './types.ts';
 
 export function childEnvironment(env: Record<string, string> = {}): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = { ...process.env, PATH: `${process.env.PATH || ''}:/opt/homebrew/bin:/usr/local/bin`, ...env };
   delete result.ELECTRON_RUN_AS_NODE;
   return result;
+}
+
+export async function openCodexAppServer(agent: Pick<AgentConfig, 'id' | 'command' | 'args' | 'env'>, cwd: string): Promise<RpcProcess> {
+  const args = [...agent.args, 'app-server'];
+  if (process.platform === 'darwin' && agent.id === 'native-codex' && agent.command === 'codex' && agent.env?.PATH === undefined) {
+    const desktopCommand = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex';
+    if (await access(desktopCommand, constants.X_OK).then(() => true, () => false)) {
+      return new RpcProcess(desktopCommand, args, cwd, agent.env);
+    }
+  }
+  return new RpcProcess(agent.command, args, cwd, agent.env);
 }
 
 export class RpcProcess {

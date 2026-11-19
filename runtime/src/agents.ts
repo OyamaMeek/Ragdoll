@@ -11,7 +11,7 @@ import type { Query, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { client as clientV1, ndJsonStream as streamV1 } from '@agentclientprotocol/sdk';
 import type { Stream } from '@agentclientprotocol/sdk';
 import { client as clientV2, ndJsonStream as streamV2 } from '@agentclientprotocol/sdk/experimental/v2';
-import { RpcProcess, childEnvironment } from './rpc.ts';
+import { RpcProcess, childEnvironment, openCodexAppServer } from './rpc.ts';
 import { ClientTools } from './client-tools.ts';
 import type { Ask } from './client-tools.ts';
 import { sessionKey, defaultLocations } from './logs.ts';
@@ -273,7 +273,7 @@ export class Agents {
       try { return { ...peer.info, protocolVersion: peer.version }; } finally { await peer.close(); await tools.close(); }
     }
     if (agent.kind === 'codex') {
-      const rpc = new RpcProcess(agent.command, [...agent.args, 'app-server'], cwd, agent.env);
+      const rpc = await openCodexAppServer(agent, cwd);
       try {
         const info = object(await rpc.request('initialize', { clientInfo: { name: 'ragdoll', version: '0.1.0' }, capabilities: { experimentalApi: true } }));
         rpc.notify('initialized');
@@ -308,7 +308,7 @@ export class Agents {
     const r: Running = { session, agent, busy: false };
     let info: Data = {};
     if (agent.kind === 'codex') {
-      const rpc = new RpcProcess(agent.command, [...agent.args, 'app-server'], cwd, agent.env); r.rpc = rpc;
+      const rpc = await openCodexAppServer(agent, cwd); r.rpc = rpc;
       rpc.onNotification = (m, p) => this.update(r, m, p);
       rpc.onExit = message => r.fail?.(new Error(message));
       rpc.onRequest = async (method, params) => {

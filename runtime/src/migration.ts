@@ -7,7 +7,7 @@ import { constants } from 'node:fs';
 import { object, string, timestamp } from './types.ts';
 import type { Data, Session } from './types.ts';
 import { parseFile } from './logs.ts';
-import { RpcProcess } from './rpc.ts';
+import { RpcProcess, openCodexAppServer } from './rpc.ts';
 
 interface Historical { role: 'user' | 'assistant'; text: string; time: number }
 
@@ -218,7 +218,11 @@ export async function migrateSession(value: unknown): Promise<Session> {
     await publishNativeHistory(prepared, destination, JSON.stringify({ ...migration, files: artifacts })); published = destination;
     if (kind === 'codex' || kind === 'dsh') {
       const args = target.args as string[];
-      const rpc = new RpcProcess(string(target.command), kind === 'codex' ? [...args, 'app-server'] : args, cwd, { ...object(target.env) as Record<string, string>, [kind === 'codex' ? 'CODEX_HOME' : 'DSH_HOME']: canonicalHome });
+      const command = string(target.command);
+      const env = { ...object(target.env) as Record<string, string>, [kind === 'codex' ? 'CODEX_HOME' : 'DSH_HOME']: canonicalHome };
+      const rpc = kind === 'codex'
+        ? await openCodexAppServer({ id: string(target.id), command, args, env }, cwd)
+        : new RpcProcess(command, args, cwd, env);
       try {
         if (kind === 'codex') {
           await rpc.request('initialize', { clientInfo: { name: 'ragdoll', version: '0.1.0' }, capabilities: { experimentalApi: true } }); rpc.notify('initialized');

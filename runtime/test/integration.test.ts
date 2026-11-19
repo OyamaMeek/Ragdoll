@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { ClientTools } from '../src/client-tools.ts';
@@ -45,14 +46,22 @@ test('real Codex app-server initializes and lists models without sending a promp
   const agents = new Agents(root, () => {}, async () => ({ allowed: false }));
   try {
     const codex = (await defaultAgents()).find(a => a.kind === 'codex')!;
-    const result = await agents.probe(codex, resolve(import.meta.dirname, '../..'));
+    const result = await agents.probe(codex, root);
     assert.ok('model' in result && 'reasoningEffort' in result);
     const models = result.models as { data: { model: string; supportedReasoningEfforts: { reasoningEffort: string }[] }[]; nextCursor: string | null };
     assert.equal(models.nextCursor, null);
     assert.ok(models.data.some(model => model.model && model.supportedReasoningEfforts.some(option => option.reasoningEffort)));
 
+    const desktopCommand = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex';
+    if (process.platform === 'darwin' && await access(desktopCommand, constants.X_OK).then(() => true, () => false)) {
+      const desktop = await agents.probe({ ...codex, command: desktopCommand }, root);
+      assert.equal(result.userAgent, desktop.userAgent);
+      assert.deepEqual(result.models, desktop.models);
+    }
+
     const { info } = await agents.start({ agent: codex, cwd: root });
     const defaults = info as Record<string, unknown>;
+    assert.deepEqual(defaults.models, models);
     const alternative = models.data.find(model => model.model !== defaults.model && model.supportedReasoningEfforts.length > 0);
     assert.ok(alternative);
     const effort = alternative.supportedReasoningEfforts[0].reasoningEffort;

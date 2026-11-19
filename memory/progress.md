@@ -210,3 +210,10 @@
 - [x] Swift 回归先因缺少模型解析而失败，真实 ACP 回归先因未转发 Agent 的确认响应而失败。现已接入会话清单、选择和更新。
 - [x] 51 项 Swift 测试、23 项 Node 测试、TypeScript 检查、发布构建、签名与助手自检通过。隔离预览从已保存的 DeepSeek ACP 会话自动发现模型，并在 Agent 确认后更新推理强度。
 - [x] `a1bdcd1 feat(acp): discover models from active sessions` 已普通推送至 `origin/main`，并核对远端提交。
+
+## 原生 Codex 模型目录（2026-11-19）
+
+- [x] 在同一 Codex home 和项目目录实测，PATH 中的 0.147.0 返回三个模型，桌面随附 CLI 返回十个，包含配置的 `gpt-6.2-sol`。
+- [x] 真实 app-server 回归先因默认版本不符而失败。统一进程入口后，默认查询、桌面 CLI 和新建会话的模型目录一致。
+- [x] 51 项 Swift 测试、21 项常规 Node 测试、1 项真实 Codex 回归和 TypeScript 检查通过。发布编译通过，原开发证书被系统判定已撤销，单独生成临时签名预览包。包内助手查询到 10 个模型，并确认显式命令和 PATH 仍生效。
+- [ ] 提交并普通推送。
