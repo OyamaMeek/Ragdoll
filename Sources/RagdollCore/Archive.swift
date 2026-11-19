@@ -63,20 +63,25 @@ public enum Archive {
         return paths.count
     }
 
-    public static func save(_ sessions: [Session], to root: URL, sourceRoots: [String] = []) throws -> ArchiveResult {
+    public static func save(_ sessions: [Session], to root: URL, sourceRoots: [String] = [], prices: [String: Price] = Settings().prices) throws -> ArchiveResult {
         let root = root.standardizedFileURL.resolvingSymlinksInPath(), fm = FileManager.default
         try prepare(root, sourceRoots: sourceRoots)
         let lease = try ServiceLease(root: root, name: ".ragdoll-archive-lock")
         defer { withExtendedLifetime(lease) {} }
         let manifestURL = root.appendingPathComponent(".ragdoll-manifest.json")
         guard manifestURL.resolvingSymlinksInPath().path.hasPrefix(root.path + "/") else { throw failure("归档清单不能指向仓库外部") }
-        let old = fm.fileExists(atPath: manifestURL.path) ? try JSONDecoder().decode([String: String].self, from: Data(contentsOf: manifestURL)) : [:]
+        let previousManifest = fm.fileExists(atPath: manifestURL.path) ? try Data(contentsOf: manifestURL) : nil
+        var old = try previousManifest.map { try JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
         let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         let inlineImages = try NSRegularExpression(pattern: "data:image/([a-z0-9.+-]+);base64,([^\\s\"'<>\\)\\]\\}`]*)", options: .caseInsensitive)
-        var desired: [String: Data] = [:]
+        let activity = ArchiveActivity.render(sessions, prices: prices)
+        let activityFiles = try prepareActivity(root, section: activity.section)
+        old[ArchiveActivity.readmePath] = activityFiles.previousReadme.map(hash)
+        old[ArchiveActivity.chartPath] = activityFiles.chartHash
+        var desired = [ArchiveActivity.readmePath: activityFiles.readme, ArchiveActivity.chartPath: activity.chart]
         var replaced: [String] = []
         for session in sessions {
-            let base = "sessions/\(safeName(session.source))/\(safeName(session.id))"
+            let base = sessionPath(session)
             var metadata = session; metadata.messages = []
             desired[base + "/metadata.json"] = try encoder.encode(metadata)
             var portable = session
@@ -110,12 +115,16 @@ public enum Archive {
                 guard old[path] == digest else { throw failure("归档文件已被手动修改或不属于应用：\(path)。请保留修改后选择其他归档目录，或恢复文件后重试。") }
             } else if old[path] != nil { throw failure("归档文件已被手动删除：\(path)。请处理该删除后重试。") }
         }
-        let managed = Array(desired.keys) + replaced + [".ragdoll-manifest.json"]
+        let managed = Array(desired.keys) + replaced + [manifestURL.lastPathComponent, ArchiveActivity.manifestPath]
         let managedSet = Set(managed)
-        let staged = try gitData(root, ["diff", "--cached", "--name-only", "-z"]).split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+        let staged = try gitData(root, ["diff", "--cached", "--no-renames", "--name-only", "-z"]).split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         for path in staged where managedSet.contains(path) {
             let data = try gitData(root, ["show", ":\(path)"])
-            let expected = path == ".ragdoll-manifest.json" ? (fm.fileExists(atPath: manifestURL.path) ? hash(try Data(contentsOf: manifestURL)) : nil) : old[path]
+            let expected = switch path {
+            case manifestURL.lastPathComponent: previousManifest.map(hash)
+            case ArchiveActivity.manifestPath: activityFiles.manifest.map(hash)
+            default: old[path]
+            }
             guard expected == hash(data) else { throw failure("归档文件存在外部暂存修改，已保留：\(path)。请先处理该暂存修改后重试。") }
         }
         var manifest = old
@@ -131,10 +140,14 @@ public enum Archive {
             try fm.removeItem(at: root.appendingPathComponent(path))
             manifest.removeValue(forKey: path); changed.append(path)
         }
-        let manifestData = try encoder.encode(manifest)
-        let previousManifest = fm.fileExists(atPath: manifestURL.path) ? try Data(contentsOf: manifestURL) : nil
-        if previousManifest != manifestData {
-            try manifestData.write(to: manifestURL, options: .atomic); changed.append(".ragdoll-manifest.json")
+        var activityManifest = manifest.filter { ArchiveActivity.paths.contains($0.key) }
+        activityManifest[ArchiveActivity.sectionKey] = hash(activity.section)
+        for (path, values, previous) in [
+            (manifestURL.lastPathComponent, manifest.filter { !ArchiveActivity.paths.contains($0.key) }, previousManifest),
+            (ArchiveActivity.manifestPath, activityManifest, activityFiles.manifest)
+        ] {
+            let data = try encoder.encode(values)
+            if previous != data { try data.write(to: root.appendingPathComponent(path), options: .atomic); changed.append(path) }
         }
         let gitDirectory = try git(root, ["rev-parse", "--absolute-git-dir"])
         let pathspec = URL(fileURLWithPath: gitDirectory).appendingPathComponent("ragdoll-pathspec-\(UUID().uuidString)")
@@ -145,6 +158,50 @@ public enum Archive {
         guard pending.contains(where: { managedSet.contains($0) }) else { return ArchiveResult(files: 0, commit: nil) }
         _ = try git(root, ["commit", "--only", "-m", "chore(archive): sync conversations", "--pathspec-from-file=\(pathspec.path)", "--pathspec-file-nul"])
         return ArchiveResult(files: changed.count, commit: try git(root, ["rev-parse", "--short", "HEAD"]))
+    }
+
+    private static func prepareActivity(_ root: URL, section: Data) throws -> (readme: Data, previousReadme: Data?, chartHash: String?, manifest: Data?) {
+        let entries = try FileManager.default.contentsOfDirectory(atPath: root.path)
+        func file(_ name: String) throws -> URL? {
+            guard let entry = entries.first(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) else { return nil }
+            let url = root.appendingPathComponent(entry)
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+            guard entry == name, values.isRegularFile == true, values.isSymbolicLink == false else { throw failure("归档报告需要同名普通文件：\(name)") }
+            return url
+        }
+        let readmePath = ArchiveActivity.readmePath
+        let manifest = try file(ArchiveActivity.manifestPath).map { try Data(contentsOf: $0) }
+        let previous = try file(readmePath).map { try Data(contentsOf: $0) }
+        _ = try file(ArchiveActivity.chartPath)
+        var readme = previous ?? Data()
+        let hashes = try manifest.map { try JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
+        let ownedSection = ArchiveActivity.sectionRange(in: readme)
+        if manifest != nil {
+            guard hashes[readmePath] != nil, hashes[ArchiveActivity.chartPath] != nil,
+                  let ownedSection, hashes[ArchiveActivity.sectionKey] == hash(readme.subdata(in: ownedSection)) else {
+                throw failure("README.md 的 Ragdoll 活动区块缺失或已修改，请恢复该区块后重试")
+            }
+        } else if ownedSection != nil {
+            throw failure("README.md 已包含活动区块，但缺少归档报告清单")
+        }
+        var checkPaths = previous == nil || previous.map(hash) != hashes[readmePath] ? [readmePath] : []
+        if manifest == nil { checkPaths += [ArchiveActivity.chartPath, ArchiveActivity.manifestPath] }
+        if !checkPaths.isEmpty {
+            let pathspecs = checkPaths.map { ":(top,icase,literal)\($0)" }
+            let status = try git(root, ["status", "--porcelain=v1", "--untracked-files=all", "--ignored=matching", "--"] + pathspecs)
+            guard status.isEmpty else { throw failure("归档报告文件存在未提交的改动，请先处理后重试：\(status)") }
+        }
+        if let ownedSection {
+            readme.replaceSubrange(ownedSection, with: section)
+        } else {
+            if !readme.isEmpty { readme.append(contentsOf: "\n\n".utf8) }
+            readme.append(section)
+        }
+        return (readme, previous, hashes[ArchiveActivity.chartPath], manifest)
+    }
+
+    static func sessionPath(_ session: Session) -> String {
+        "sessions/\(safeName(session.source))/\(safeName(session.id))"
     }
 
     private static func extractImages(_ text: String, matching pattern: NSRegularExpression, base: String, files: inout [String: Data]) -> String {

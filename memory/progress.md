@@ -238,3 +238,10 @@
 - [x] 回归先因缺少谷价属性编译失败。实现后 52 项 Swift 测试通过，450 万 Token 的峰价为 ¥13.04、谷价为 ¥6.52。
 - [x] 发布构建、深度签名、包内助手自检和隔离启动通过，`dist` 仅保留 `Ragdoll.app`。
 - [x] `c1d91f9 fix(dashboard): toggle DeepSeek peak and off-peak estimates` 已推送至 `origin/main`。
+
+## Git 归档活动 README（2026-11-19）
+
+- [x] 确认前台与后台共用归档写入，且两条路径在写入前应用排除项目设置。
+- [x] 回归先因缺少 README 失败。完整 Swift 测试 54 项通过，覆盖真实 Git 上的 README 生成、更新、文件保护、恢复和推送。
+- [x] 重新签名构建 `dist/Ragdoll.app`。包内独立后台进程从隔离数据生成 README，把 README 与热力图推送至本地裸仓库，远端与本地提交一致。
+- [ ] 提交并推送源码。

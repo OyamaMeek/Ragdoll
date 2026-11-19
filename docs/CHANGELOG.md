@@ -403,3 +403,16 @@
 - **Git 提交** `c1d91f9 fix(dashboard): toggle DeepSeek peak and off-peak estimates`，已推送至 `origin/main`。
 
 ---
+
+## [2026-11-19 19:54] 自动更新归档仓库 README
+
+- **需求/问题描述**
+  > 自动在 Git 归档仓库的 `README.md` 展示首页活动信息，省去 DeepSeek 对比估价。
+- **实际实现的功能与改动**
+  - 前台和后台归档都更新根目录 README 中的活动区块及热力图，显示美元估算成本、Token、会话总数、项目活动和可打开归档文本的最近会话。统计沿用当前价格和项目排除设置。
+  - 已有 README 的正文按原样保留，生成区块随归档提交并使用既有推送配置。暂存和未提交的人工修改受到保护。
+  - 回归先因缺少 README 失败，完整 Swift 测试 54 项通过。发布构建、Apple Development 签名校验与包内运行时自检通过。签名包内独立服务在隔离环境读取一条 Codex 测试会话，生成 README 与热力图并推送至本地裸仓库，远端与本地提交一致。
+- **涉及文件** `Sources/RagdollCore/Archive.swift`、`Sources/RagdollCore/ArchiveActivity.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollCoreTests/`、`docs/USAGE.md`、`docs/CHANGELOG.md`、`memory/`。
+- **Git 提交** 待提交。
+
+---

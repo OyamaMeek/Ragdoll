@@ -101,6 +101,7 @@ import Darwin
     #expect(retry.terminationStatus == 1)
     #expect(try git(archive, ["rev-parse", "HEAD"]) == head)
     #expect(try git(remote, ["rev-parse", "refs/heads/archive"]) == head)
+    #expect(try git(remote, ["show", "refs/heads/archive:README.md"]).contains("Ragdoll 活动概览"))
     #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
     #expect(try String(contentsOf: transcript, encoding: .utf8) == "hand edited")
 }

@@ -191,7 +191,13 @@ final class AppModel: ObservableObject {
         catch { self.error = error.localizedDescription }
     }
     func saveSettings() throws { try store?.saveSettings(settings) }
-    func persistSettings() { do { try saveSettings() } catch { self.error = error.localizedDescription } }
+    func persistSettings(refreshArchive: Bool = false) {
+        do {
+            try saveSettings()
+            if refreshArchive { scheduleArchive() }
+        }
+        catch { self.error = error.localizedDescription }
+    }
     private func hydrated(_ config: AgentConfig) throws -> AgentConfig {
         var config = config; config.env = try Secrets.load(config.id).merging(config.env) { secret, _ in secret }; return config
     }
@@ -361,13 +367,13 @@ final class AppModel: ObservableObject {
         catch { self.error = error.localizedDescription; return }
         archiving = true; archiveStatus = "正在保存并提交…"
         let generation = dirtyGeneration
-        let path = settings.archivePath, excluded = settings.excludedProjects, roots = settings.locations.map(\.path), remote = settings.archiveRemote
+        let path = settings.archivePath, excluded = settings.excludedProjects, roots = settings.locations.map(\.path), remote = settings.archiveRemote, prices = settings.prices
         do {
             let lease = try ServiceLease(root: root)
             defer { withExtendedLifetime(lease) {} }
             let result = try await Task.detached(priority: .utility) {
                 let sessions = try store.list().filter { !excluded.contains($0.project) }.compactMap { try store.session($0.id) }
-                return try Archive.save(sessions, to: URL(fileURLWithPath: path), sourceRoots: roots)
+                return try Archive.save(sessions, to: URL(fileURLWithPath: path), sourceRoots: roots, prices: prices)
             }.value
             archiveStatus = result.commit.map { "已保存并提交 · \($0) · \(result.files) 个文件" } ?? "归档已是最新，无需提交"
             lastArchive = Date(); if generation == dirtyGeneration { dirtySince = nil }

@@ -75,6 +75,78 @@ func testDirectory() throws -> URL {
     #expect(try String(contentsOf: transcript, encoding: .utf8) == "hand edited")
 }
 
+@Test func archiveCommitsAndRefreshesActivityInRootReadme() throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    try Archive.prepare(root)
+    try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
+    let time = Date().addingTimeInterval(-60).timeIntervalSince1970 * 1000
+    let usage = Usage(id: "resp_report", time: time, model: "gpt-6.1-sol", input: 500_000, output: 500_000)
+    let recent = Session(id: "new:session", source: "codex", title: "最近 | [会话]\n<img>", project: "/work/示例项目", created: time, usage: [usage])
+    let older = Session(id: "older", source: "codex", title: "旧会话", created: time - 1000)
+
+    #expect(try Archive.save([older, recent], to: root).commit != nil)
+    let report = try git(root, ["show", "HEAD:README.md"])
+    #expect(report.contains("估算总成本 | $6.00 | 1/1 条用量已定价"))
+    #expect(report.contains("总 Token | 1,000,000 | 1 个会话缺少用量"))
+    #expect(report.contains("会话 | 2 |"))
+    #expect(report.contains("示例项目 | 1,000,000 | 1 | $6.00"))
+    #expect(report.contains("[最近 &#124; &#91;会话&#93; &lt;img&gt;](sessions/codex/new_session/transcript.md)"))
+    let recentRange = try #require(report.range(of: "最近 &#124;"))
+    let olderRange = try #require(report.range(of: "旧会话"))
+    #expect(recentRange.lowerBound < olderRange.lowerBound)
+    #expect(!report.contains("DeepSeek V4.1 Flash"))
+    let chart = try git(root, ["show", "HEAD:ragdoll-token-activity.svg"])
+    #expect(report.contains("(ragdoll-token-activity.svg)"))
+    let xml = try XMLDocument(xmlString: chart)
+    let activityCells = try xml.nodes(forXPath: "//*[local-name()='rect'][*[local-name()='title']]/@fill").compactMap(\.stringValue)
+    #expect(activityCells.filter { $0 == "#9be9a8" }.count == 1)
+    #expect((365...366).contains(activityCells.count))
+    #expect(try Archive.save([recent, older], to: root).commit == nil)
+
+    var updated = recent; updated.title = "更新标题"
+    let prices = [usage.model: Price(input: 1, output: 1)]
+    #expect(try Archive.save([updated, older], to: root, prices: prices).commit != nil)
+    let refreshed = try git(root, ["show", "HEAD:README.md"])
+    #expect(refreshed.contains("更新标题"))
+    #expect(refreshed.contains("估算总成本 | $1.00 |"))
+    let manifest = try git(root, ["show", "HEAD:.ragdoll-manifest.json"])
+    #expect(!manifest.contains("README.md"))
+}
+
+@Test func archivePreservesExistingReadmeAndItsExternalEdits() throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    try Archive.prepare(root)
+    try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
+    let readme = root.appendingPathComponent("README.md")
+    let original = "# 仓库说明\n\n手写内容。\n"
+    try Data(original.utf8).write(to: readme)
+    #expect(throws: (any Error).self) { try Archive.save([], to: root) }
+    #expect(try String(contentsOf: readme, encoding: .utf8) == original)
+    try git(root, ["add", "README.md"]); try git(root, ["commit", "-m", "docs: add repository readme"])
+    var session = Session(id: "one", source: "codex", title: "一条会话")
+    _ = try Archive.save([session], to: root)
+    let withReport = try String(contentsOf: readme, encoding: .utf8)
+    #expect(withReport.hasPrefix(original))
+    #expect(withReport.contains("Ragdoll 活动概览"))
+
+    let edited = withReport.replacingOccurrences(of: "手写内容。", with: "新的手写内容。")
+    try Data(edited.utf8).write(to: readme)
+    try git(root, ["add", "README.md"])
+    session.title = "会话更名"
+    #expect(throws: (any Error).self) { try Archive.save([session], to: root) }
+    #expect(try git(root, ["diff", "--cached", "--name-only"]) == "README.md")
+    #expect(try String(contentsOf: readme, encoding: .utf8) == edited)
+    try git(root, ["commit", "-m", "docs: update repository readme"])
+    _ = try Archive.save([session], to: root)
+    let refreshed = try String(contentsOf: readme, encoding: .utf8)
+    #expect(refreshed.contains("新的手写内容。"))
+    #expect(refreshed.contains("会话更名"))
+    let alteredReport = refreshed.replacingOccurrences(of: "会话更名", with: "手动改了生成区块")
+    try Data(alteredReport.utf8).write(to: readme)
+    #expect(throws: (any Error).self) { try Archive.save([session], to: root) }
+    #expect(try String(contentsOf: readme, encoding: .utf8) == alteredReport)
+}
+
 @Test func archiveCannotLiveInsideSourceHome() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     #expect(throws: (any Error).self) { try Archive.save([], to: root.appendingPathComponent("archive"), sourceRoots: [root.path]) }
@@ -119,6 +191,7 @@ func testDirectory() throws -> URL {
     _ = try Archive.save([active], to: root)
     #expect(try git(root, ["diff", "--cached", "--name-only"]) == path)
     #expect(try git(root, ["show", ":\(path)"]) == "keep staged")
+    #expect(try !git(root, ["show", "HEAD:README.md"]).contains("Excluded"))
 }
 
 @Test func archiveHandlesPathListsBeyondSystemArgumentLimits() throws {
@@ -126,5 +199,5 @@ func testDirectory() throws -> URL {
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     let sessions = (0..<1500).map { Session(id: String(repeating: "a", count: 180) + String($0), source: "codex", title: "History \($0)") }
     #expect(try Archive.save(sessions, to: root).commit != nil)
-    #expect(try git(root, ["ls-tree", "-r", "--name-only", "HEAD"]).components(separatedBy: .newlines).count == 4501)
+    #expect(try git(root, ["ls-tree", "-r", "--name-only", "HEAD"]).components(separatedBy: .newlines).count == 4504)
 }

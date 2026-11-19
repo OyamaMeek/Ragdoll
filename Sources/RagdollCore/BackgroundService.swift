@@ -144,7 +144,7 @@ public actor BackgroundWorker {
                     let store = self.store
                     let result = try await Task.detached(priority: .utility) {
                         let sessions = try store.list().filter { !settings.excludedProjects.contains($0.project) }.compactMap { try store.session($0.id) }
-                        return try Archive.save(sessions, to: URL(fileURLWithPath: settings.archivePath), sourceRoots: settings.locations.map(\.path))
+                        return try Archive.save(sessions, to: URL(fileURLWithPath: settings.archivePath), sourceRoots: settings.locations.map(\.path), prices: settings.prices)
                     }.value
                     state.archive = result.commit.map { "本地归档已提交 · \($0)" } ?? "本地归档已是最新"
                     state.lastArchive = Date()

@@ -168,7 +168,7 @@ struct SettingsView: View {
                     Text("取消选择的项目仍可浏览和统计，其后续变化不写入归档；已有归档不会删除。").font(.caption).foregroundStyle(.secondary)
                     ForEach(model.projects, id: \.self) { project in
                         Toggle(project, isOn: Binding(get: { !model.settings.excludedProjects.contains(project) }, set: { include in
-                            model.settings.excludedProjects.removeAll { $0 == project }; if !include { model.settings.excludedProjects.append(project) }; model.persistSettings()
+                            model.settings.excludedProjects.removeAll { $0 == project }; if !include { model.settings.excludedProjects.append(project) }; model.persistSettings(refreshArchive: true)
                         })).toggleStyle(.checkbox).font(.caption)
                     }
                 }
@@ -185,7 +185,7 @@ struct SettingsView: View {
                     do {
                         let result = try JSONDecoder().decode([String: Price].self, from: Data(prices.utf8))
                         guard result.values.allSatisfy({ [$0.input, $0.output, $0.cacheRead, $0.cacheWrite].allSatisfy { $0.isFinite && $0 >= 0 } }) else { model.error = "价格必须是非负有限数字"; return }
-                        model.settings.prices = result; model.persistSettings()
+                        model.settings.prices = result; model.persistSettings(refreshArchive: true)
                     } catch { model.error = "价格表无效：\(error.localizedDescription)" }
                 }.buttonStyle(.borderedProminent) }
             }
