@@ -379,3 +379,15 @@
 - **Git 提交** `2894181 fix(build): keep a single app bundle`，已推送至 `origin/main`。
 
 ---
+
+## [2026-11-19 17:55] 首页 DeepSeek V4.1 Flash 高峰价估算
+
+- **需求/问题描述**
+  > 点击首页第二张卡片，按 DeepSeek V4.1 Flash 高峰价查看已记录 Token 的估价。
+- **实际实现的功能与改动**
+  - 估价覆盖当前项目和来源筛选下的全部已记录用量，按缓存命中输入、未命中输入和输出分类计算人民币金额。 [DeepSeek 官方价目](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)
+  - 新增回归先因缺少估价属性编译失败，接入估价后 52 项 Swift 测试通过。发布构建、深度签名、包内自检及隔离启动通过。窗口点击和视觉尚未实测。
+- **涉及文件** `Sources/Ragdoll/DashboardView.swift`、`Sources/RagdollCore/Analytics.swift`、`Tests/RagdollCoreTests/AnalyticsTests.swift`、`docs/USAGE.md`、`memory/`、`docs/CHANGELOG.md`。
+- **Git 提交** 待提交。
+
+---

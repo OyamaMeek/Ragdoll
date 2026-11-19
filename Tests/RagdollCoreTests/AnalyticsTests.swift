@@ -15,6 +15,26 @@ import Testing
     #expect(result.alert == "warning")
 }
 
+@Test func deepSeekFlashPeakEstimateUsesAllRecordedTokenCategories() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let time = now.timeIntervalSince1970 * 1000
+    let historical = Usage(id: "resp_peak", time: time - 30 * 86_400_000, model: "unknown", input: 1_000_000,
+                           output: 1_000_000, cacheRead: 1_000_000, cacheWrite: 1_000_000)
+    let current = Usage(time: time, model: "known", input: 500_000, output: 0)
+    let future = Usage(time: time + 1000, model: "known", input: 1_000_000, output: 0)
+    let sessions = [Session(id: "a", source: "codex", title: "Usage", usage: [historical, current, future]),
+                    Session(id: "b", source: "codex", title: "Duplicate", usage: [historical])]
+    let prices = ["known": Price(input: 10, output: 0)]
+    let result = Analytics.summarize(sessions, prices: prices, budget: 10, now: now)
+    #expect(abs(result.deepSeekFlashPeakCostCNY - 13.04) < 0.00001)
+    #expect(result.events == 2)
+    #expect(result.cost == 5)
+    #expect(result.weeklyCost == 5)
+    let empty = Analytics.summarize([], prices: prices, budget: nil, now: now)
+    #expect(empty.events == 0)
+    #expect(empty.deepSeekFlashPeakCostCNY == 0)
+}
+
 @Test func heatmapUsesLocalCalendarAcrossDST() {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(identifier: "America/New_York")!

@@ -5,6 +5,7 @@ public struct Dashboard: Sendable {
     public var cost = 0.0
     public var recentCost = 0.0
     public var weeklyCost = 0.0
+    public var deepSeekFlashPeakCostCNY = 0.0
     public var pricedEvents = 0
     public var events = 0
     public var sessions = 0
@@ -23,6 +24,11 @@ public struct ProjectTotal: Identifiable, Sendable {
 }
 
 public enum Analytics {
+    private static let deepSeekFlashPeakPrice = Price(
+        input: 2, output: 8, cacheRead: 0.04, cacheWrite: 2,
+        reference: "https://api-docs.deepseek.com/zh-cn/quick_start/pricing/", date: "2026-11-19"
+    )
+
     public static func summarize(_ sessions: [Session], prices: [String: Price], budget: Double?, now: Date = Date(), calendar: Calendar = .current) -> Dashboard {
         var result = Dashboard()
         result.sessions = sessions.count
@@ -44,6 +50,7 @@ public enum Analytics {
                 guard date <= now else { continue }
                 result.events += 1
                 result.tokens += usage.tokens
+                result.deepSeekFlashPeakCostCNY += deepSeekFlashPeakPrice.cost(usage)
                 project.tokens += usage.tokens
                 if let price = prices[usage.model] {
                     let cost = price.cost(usage)
