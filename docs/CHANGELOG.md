@@ -413,6 +413,6 @@
   - 已有 README 的正文按原样保留，生成区块随归档提交并使用既有推送配置。暂存和未提交的人工修改受到保护。
   - 回归先因缺少 README 失败，完整 Swift 测试 54 项通过。发布构建、Apple Development 签名校验与包内运行时自检通过。签名包内独立服务在隔离环境读取一条 Codex 测试会话，生成 README 与热力图并推送至本地裸仓库，远端与本地提交一致。
 - **涉及文件** `Sources/RagdollCore/Archive.swift`、`Sources/RagdollCore/ArchiveActivity.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollCoreTests/`、`docs/USAGE.md`、`docs/CHANGELOG.md`、`memory/`。
-- **Git 提交** 待提交。
+- **Git 提交** `51cb005 feat(archive): publish activity in repository README`，已推送至 `origin/main`。
 
 ---

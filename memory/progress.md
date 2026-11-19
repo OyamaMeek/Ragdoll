@@ -244,4 +244,4 @@
 - [x] 确认前台与后台共用归档写入，且两条路径在写入前应用排除项目设置。
 - [x] 回归先因缺少 README 失败。完整 Swift 测试 54 项通过，覆盖真实 Git 上的 README 生成、更新、文件保护、恢复和推送。
 - [x] 重新签名构建 `dist/Ragdoll.app`。包内独立后台进程从隔离数据生成 README，把 README 与热力图推送至本地裸仓库，远端与本地提交一致。
-- [ ] 提交并推送源码。
+- [x] `51cb005 feat(archive): publish activity in repository README` 已推送至 `origin/main`。
