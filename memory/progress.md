@@ -247,3 +247,4 @@
 - [x] `51cb005 feat(archive): publish activity in repository README` 已推送至 `origin/main`。
 - [x] 核对实际归档分支尚无 README，正在运行的应用早于本轮构建。用目标分支上已归档的会话生成本地 README 和热力图，校验文件摘要和 SVG 格式。
 - [x] 用户明确要求放入本地 Git 文件夹。README 和热力图已放到归档仓库根目录，逐字节一致，两份文件均未跟踪。报告清单保留在本地预览目录，避免新版归档自动接管这份本地报告。
+- [x] 用户明确授权公开推送后，提交并推送 README、热力图和清单。已核对归档仓库 `main` 指向 `ef4bfcb`，GitHub 首页包含活动概览和热力图引用。
