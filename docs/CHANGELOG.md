@@ -376,6 +376,6 @@
   - 本地脚本完成签名和自检后更新 `dist/Ragdoll.app`，旧包仅在替换过程中用于恢复。历史应用包、验证副本及旧发布压缩包已移到废纸篓。
   - 旧脚本实测留下历史包，新脚本实测签名失败时保留原包，重建成功后仍只保留一个应用包。按原包证书指纹签名，深度校验、自检和包内查询 10 个 Codex 模型均通过。
 - **涉及文件** `scripts/build.sh`、`memory/`、`docs/CHANGELOG.md`。
-- **Git 提交** 待提交。
+- **Git 提交** `2894181 fix(build): keep a single app bundle`，已推送至 `origin/main`。
 
 ---
