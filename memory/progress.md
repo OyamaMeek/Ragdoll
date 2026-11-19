@@ -237,4 +237,4 @@
 - [x] 确认官方谷价为峰价的一半，峰谷估价复用首页「总 Token」汇总中的同一批用量。
 - [x] 回归先因缺少谷价属性编译失败。实现后 52 项 Swift 测试通过，450 万 Token 的峰价为 ¥13.04、谷价为 ¥6.52。
 - [x] 发布构建、深度签名、包内助手自检和隔离启动通过，`dist` 仅保留 `Ragdoll.app`。
-- [ ] 提交并推送本次改动。
+- [x] `c1d91f9 fix(dashboard): toggle DeepSeek peak and off-peak estimates` 已推送至 `origin/main`。

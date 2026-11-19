@@ -400,6 +400,6 @@
   - 卡片显示人民币金额和当前档位，点击切换峰价与谷价。谷价是同一份总 Token 用量折算的峰价金额的一半。 [DeepSeek 官方价目](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)
   - 52 项 Swift 测试通过，回归覆盖两档金额和空用量。发布构建、深度签名、包内自检及隔离启动通过。尚未实测窗口点击或视觉效果。
 - **涉及文件** `Sources/Ragdoll/DashboardView.swift`、`Sources/RagdollCore/Analytics.swift`、`Tests/RagdollCoreTests/AnalyticsTests.swift`、`docs/USAGE.md`、`memory/`、`docs/CHANGELOG.md`。
-- **Git 提交** 待提交。
+- **Git 提交** `c1d91f9 fix(dashboard): toggle DeepSeek peak and off-peak estimates`，已推送至 `origin/main`。
 
 ---
