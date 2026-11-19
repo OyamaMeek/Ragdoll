@@ -231,3 +231,10 @@
 - [x] 回归因缺少估价属性编译失败。接入高峰计价与可点击首页卡片后，全部 52 项 Swift 测试通过。
 - [x] 发布构建、深度签名与助手自检通过。新版以隔离数据目录启动，SQLite 检查通过，`dist` 仅保留 `Ragdoll.app`。
 - [x] `bc621f1 feat(dashboard): estimate token costs at DeepSeek peak rates` 已推送至 `origin/main`。
+
+## DeepSeek V4.1 Flash 峰谷价切换（2026-11-19）
+
+- [x] 确认官方谷价为峰价的一半，峰谷估价复用首页「总 Token」汇总中的同一批用量。
+- [x] 回归先因缺少谷价属性编译失败。实现后 52 项 Swift 测试通过，450 万 Token 的峰价为 ¥13.04、谷价为 ¥6.52。
+- [x] 发布构建、深度签名、包内助手自检和隔离启动通过，`dist` 仅保留 `Ragdoll.app`。
+- [ ] 提交并推送本次改动。

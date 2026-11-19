@@ -15,7 +15,7 @@ import Testing
     #expect(result.alert == "warning")
 }
 
-@Test func deepSeekFlashPeakEstimateUsesAllRecordedTokenCategories() {
+@Test func deepSeekFlashEstimatesUseTheSameRecordedTokenTotal() {
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     let time = now.timeIntervalSince1970 * 1000
     let historical = Usage(id: "resp_peak", time: time - 30 * 86_400_000, model: "unknown", input: 1_000_000,
@@ -26,13 +26,16 @@ import Testing
                     Session(id: "b", source: "codex", title: "Duplicate", usage: [historical])]
     let prices = ["known": Price(input: 10, output: 0)]
     let result = Analytics.summarize(sessions, prices: prices, budget: 10, now: now)
+    #expect(result.tokens == 4_500_000)
     #expect(abs(result.deepSeekFlashPeakCostCNY - 13.04) < 0.00001)
+    #expect(abs(result.deepSeekFlashOffPeakCostCNY - 6.52) < 0.00001)
     #expect(result.events == 2)
     #expect(result.cost == 5)
     #expect(result.weeklyCost == 5)
     let empty = Analytics.summarize([], prices: prices, budget: nil, now: now)
     #expect(empty.events == 0)
     #expect(empty.deepSeekFlashPeakCostCNY == 0)
+    #expect(empty.deepSeekFlashOffPeakCostCNY == 0)
 }
 
 @Test func heatmapUsesLocalCalendarAcrossDST() {

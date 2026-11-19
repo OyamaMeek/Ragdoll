@@ -8,7 +8,7 @@ struct DashboardView: View {
     @State private var budget = ""
     @State private var heatmapYear = Calendar.current.component(.year, from: Date())
     @State private var hoveredDay: Date?
-    @State private var showDeepSeekEstimate = false
+    @State private var useDeepSeekOffPeakRate = false
     var body: some View {
         let stats = model.dashboard
         ScrollView {
@@ -29,15 +29,16 @@ struct DashboardView: View {
                 HStack(spacing: 14) {
                     metric("估算总成本", value: stats.pricedEvents > 0 ? money(stats.cost) : "未知", note: "\(stats.pricedEvents)/\(stats.events) 条用量已定价", icon: "dollarsign.circle")
                     Button {
-                        showDeepSeekEstimate.toggle()
+                        useDeepSeekOffPeakRate.toggle()
                     } label: {
-                        let estimate = stats.events > 0 ? "约 \(stats.deepSeekFlashPeakCostCNY.formatted(.currency(code: "CNY")))" : "暂无用量"
-                        metric("DeepSeek V4.1 Flash", value: showDeepSeekEstimate ? estimate : "查看估价",
-                               note: "高峰价 · 人民币", icon: "calculator")
+                        let cost = useDeepSeekOffPeakRate ? stats.deepSeekFlashOffPeakCostCNY : stats.deepSeekFlashPeakCostCNY
+                        let estimate = stats.events > 0 ? "约 \(cost.formatted(.currency(code: "CNY")))" : "暂无用量"
+                        metric("DeepSeek V4.1 Flash", value: estimate,
+                               note: useDeepSeekOffPeakRate ? "谷价 · 人民币" : "峰价 · 人民币", icon: "arrow.left.arrow.right")
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityHint(showDeepSeekEstimate ? "收起估价" : "显示估价")
+                    .accessibilityHint(useDeepSeekOffPeakRate ? "切换到峰价" : "切换到谷价")
                     metric("总 Token", value: compact(stats.tokens), note: "\(stats.missingUsageSessions) 个会话缺少用量", icon: "chart.bar.xaxis")
                     metric("会话", value: "\(stats.sessions)", note: "本地日志与导入记录", icon: "bubble.left.and.bubble.right")
                 }

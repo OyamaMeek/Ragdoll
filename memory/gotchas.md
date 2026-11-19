@@ -22,3 +22,4 @@
 - 排除 Node 测试使用 `--test-skip-pattern='[Cc]laude'`，并排除 Claude 导出包测试文件；不要用会匹配文件级父测试的反向 `--test-name-pattern`。
 - NSTableView 的选择回调中延后更新详情和列表状态，避免同步重入其 delegate。
 - `SMAppService.status == .enabled` 仅代表注册状态；必须结合实际进程、锁和新鲜心跳判断正在运行。系统签名和受保护目录授权可阻止启动或数据访问，不把手动 helper 成功等同于 launchd 全流程成功。
+- 首页 DeepSeek 卡片的点击用于切换峰价与谷价，默认直接显示峰价。两档按「总 Token」的同一批用量计算。

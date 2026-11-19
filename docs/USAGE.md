@@ -12,7 +12,7 @@
 
 年度热力图按本地自然日汇总 Token。当前年份显示过去一年，历史年份显示完整自然年；可切换年份、悬停查看每日用量、点击日期筛选会话，也可按项目和来源筛选。
 
-首页显示项目用量与估算总成本。点击「DeepSeek V4.1 Flash」卡片，可以查看当前项目和来源筛选下全部已记录 Token 按高峰价折算的人民币估价。估算沿用本地记录的缓存命中情况。 [DeepSeek 官方价目](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)
+「DeepSeek V4.1 Flash」卡片默认显示峰价的人民币估价，点击切换到谷价，再点切回峰价。两档都按旁边「总 Token」的同一份用量计算，并沿用本地记录的输入、输出和缓存命中情况。 [DeepSeek 官方价目](https://api-docs.deepseek.com/zh-cn/quick_start/pricing/)
 
 「设置 → 首页 → 显示每周预算」默认关闭，开启后展示滚动 168 小时预算及 80% / 100% 提醒。
 

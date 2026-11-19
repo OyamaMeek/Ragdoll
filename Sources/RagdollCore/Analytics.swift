@@ -6,6 +6,7 @@ public struct Dashboard: Sendable {
     public var recentCost = 0.0
     public var weeklyCost = 0.0
     public var deepSeekFlashPeakCostCNY = 0.0
+    public var deepSeekFlashOffPeakCostCNY: Double { deepSeekFlashPeakCostCNY / 2 }
     public var pricedEvents = 0
     public var events = 0
     public var sessions = 0
