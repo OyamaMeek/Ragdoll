@@ -230,4 +230,4 @@
 - [x] 核对 DeepSeek 官方高峰人民币单价，确认首页使用已筛选会话，汇总层已有请求去重和 Token 分类。
 - [x] 回归因缺少估价属性编译失败。接入高峰计价与可点击首页卡片后，全部 52 项 Swift 测试通过。
 - [x] 发布构建、深度签名与助手自检通过。新版以隔离数据目录启动，SQLite 检查通过，`dist` 仅保留 `Ragdoll.app`。
-- [ ] 提交并推送本次改动。
+- [x] `bc621f1 feat(dashboard): estimate token costs at DeepSeek peak rates` 已推送至 `origin/main`。
