@@ -245,3 +245,5 @@
 - [x] 回归先因缺少 README 失败。完整 Swift 测试 54 项通过，覆盖真实 Git 上的 README 生成、更新、文件保护、恢复和推送。
 - [x] 重新签名构建 `dist/Ragdoll.app`。包内独立后台进程从隔离数据生成 README，把 README 与热力图推送至本地裸仓库，远端与本地提交一致。
 - [x] `51cb005 feat(archive): publish activity in repository README` 已推送至 `origin/main`。
+- [x] 核对实际归档分支尚无 README，正在运行的应用早于本轮构建。用目标分支上已归档的会话生成本地 README 和热力图，校验文件摘要和 SVG 格式。
+- [x] 用户明确要求放入本地 Git 文件夹。README 和热力图已放到归档仓库根目录，逐字节一致，两份文件均未跟踪。报告清单保留在本地预览目录，避免新版归档自动接管这份本地报告。
