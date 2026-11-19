@@ -17,10 +17,18 @@ if [ ! -x ".cache/$node_name/bin/node" ]; then
   (cd .cache && shasum -a 256 -c node-checksums.txt)
   tar -xzf ".cache/${node_name}.tar.gz" -C .cache
 fi
-stage="$root/dist/Ragdoll.staging.app"
-if [ -d "$stage" ]; then rm -rf "$stage"; fi
+output="$root/dist/Ragdoll.app"
+build_dir=$(mktemp -d "$root/dist/.ragdoll-build.XXXXXX")
+stage="$build_dir/Ragdoll.app"
+previous="$build_dir/previous.app"
+cleanup() {
+  if [ -d "$previous" ] && [ ! -e "$output" ]; then
+    mv "$previous" "$output" || return
+  fi
+  rm -rf "$build_dir"
+}
+trap cleanup EXIT
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources/runtime/app"
-trap 'rm -rf "$stage"' EXIT
 cp .build/release/Ragdoll "$stage/Contents/MacOS/Ragdoll"
 cp .build/release/RagdollService "$stage/Contents/MacOS/RagdollService"
 mkdir -p "$stage/Contents/Library/LaunchAgents"
@@ -38,8 +46,6 @@ cp -R docs "$stage/Contents/Resources/docs"
 codesign --force --deep --sign "${CODE_SIGN_IDENTITY:--}" "$stage"
 codesign --verify --deep --strict "$stage"
 "$stage/Contents/Resources/runtime/node/bin/node" "$stage/Contents/Resources/runtime/app/dist/main.mjs" --self-check
-if [ -d dist/Ragdoll.previous.app ]; then rm -rf dist/Ragdoll.previous.app; fi
-if [ -d dist/Ragdoll.app ]; then mv dist/Ragdoll.app dist/Ragdoll.previous.app; fi
-mv "$stage" dist/Ragdoll.app
-trap - EXIT
-echo "Built: $root/dist/Ragdoll.app"
+if [ -d "$output" ]; then mv "$output" "$previous"; fi
+mv "$stage" "$output"
+echo "Built: $output"
