@@ -216,4 +216,4 @@
 - [x] 在同一 Codex home 和项目目录实测，PATH 中的 0.147.0 返回三个模型，桌面随附 CLI 返回十个，包含配置的 `gpt-6.2-sol`。
 - [x] 真实 app-server 回归先因默认版本不符而失败。统一进程入口后，默认查询、桌面 CLI 和新建会话的模型目录一致。
 - [x] 51 项 Swift 测试、21 项常规 Node 测试、1 项真实 Codex 回归和 TypeScript 检查通过。发布编译通过，原开发证书被系统判定已撤销，单独生成临时签名预览包。包内助手查询到 10 个模型，并确认显式命令和 PATH 仍生效。
-- [ ] 提交并普通推送。
+- [x] `12cff7f fix(codex): use desktop model catalog` 已普通推送至 `origin/main`。
