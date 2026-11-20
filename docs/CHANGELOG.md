@@ -467,6 +467,6 @@
   - release 构建、原有效 Apple Development 身份签名与深度校验、包内 usage-only 自检通过。正式应用已启动，原有 861 个会话和 21,767 条用量完整保留；扫描后 863 个会话，索引约 4.37 MiB。恢复副本约 1.03 GiB，旧归档仍占用原有空间。
   - 未进行截图、视觉或窗口交互验证，未运行 Claude 测试。工作区已有头像改动原件保存在忽略目录 `.agent/checkpoints/token-only/`。
 - **涉及文件**：`Sources/Ragdoll/`、`Sources/RagdollCore/`、`Tests/`、`runtime/src/`、`runtime/test/`、`runtime/package.json`、`runtime/package-lock.json`、`.github/workflows/release.yml`、`README.md`、`docs/`、`memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`e9760e6 refactor(usage): retain only per-session token data`，已普通推送至 `origin/main`。
 
 ---
