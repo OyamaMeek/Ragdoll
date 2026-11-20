@@ -9,7 +9,7 @@ private actor ReceivedSessions {
     }
 }
 
-@Test func scanDeliversLargeUnicodeMessagesWithoutStalling() async throws {
+@Test func scanSkipsLargeUnicodeBodiesAndDeliversSessionMetadataWithoutStalling() async throws {
     let root = try testDirectory()
     defer { try? FileManager.default.removeItem(at: root) }
     let home = root.appendingPathComponent("codex")
@@ -29,8 +29,9 @@ private actor ReceivedSessions {
         #expect(result["count"] == .number(3))
         let delivered = await received.messages
         #expect(delivered.count == 3)
-        #expect(delivered.first { $0["nativeID"].string == "large" }?["messages"].array.first?["text"].string == text)
-        #expect(delivered.filter { $0["messages"].array.first?["text"].string == "短消息" }.count == 2)
+        #expect(delivered.contains { $0["nativeID"].string == "large" })
+        #expect(delivered.allSatisfy { $0["messages"] == .null && $0["files"] == .null })
+        #expect(delivered.allSatisfy { $0.text.utf8.count < 1024 })
         let next = try await bridge.request("scan", ["locations": .array([])], timeout: 2)
         #expect(next["count"] == .number(0))
     } catch {

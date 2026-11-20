@@ -34,7 +34,7 @@ enum ArchiveActivity {
             let href = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
             let title = escape(session.title)
             let updated = Date(timeIntervalSince1970: session.updated / 1000).formatted(day)
-            return "| [\(title.isEmpty ? "未命名会话" : title)](\(href)/transcript.md) | \(escape(session.source)) | \(escape(session.projectName)) | \(updated) |"
+            return "| [\(title.isEmpty ? "未命名会话" : title)](\(href)) | \(escape(session.source)) | \(escape(session.projectName)) | \(updated) |"
         }
 
         let markdown = """

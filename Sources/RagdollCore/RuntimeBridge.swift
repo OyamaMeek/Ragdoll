@@ -53,7 +53,7 @@ public actor RuntimeBridge {
         let isBundled = FileManager.default.fileExists(atPath: bundled.appendingPathComponent("app/dist/main.mjs").path)
         let script = isBundled ? bundled.appendingPathComponent("app/dist/main.mjs") : repo.appendingPathComponent("runtime/dist/main.mjs")
         let node = isBundled ? bundled.appendingPathComponent("node/bin/node") : URL(fileURLWithPath: "/opt/homebrew/bin/node")
-        guard FileManager.default.fileExists(atPath: script.path), FileManager.default.isExecutableFile(atPath: node.path) else { throw failure("缺少 SDK 助手，请先运行构建脚本。") }
+        guard FileManager.default.fileExists(atPath: script.path), FileManager.default.isExecutableFile(atPath: node.path) else { throw failure("缺少用量读取助手，请先运行构建脚本。") }
         let p = Process(); p.executableURL = node; p.arguments = [script.path, "--data-dir", dataDirectory.path]
         var environment = ProcessInfo.processInfo.environment
         environment["PATH"] = node.deletingLastPathComponent().path + ":/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:" + (environment["PATH"] ?? "")

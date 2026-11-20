@@ -13,9 +13,9 @@ import Darwin
     if kind != "missing" {
         try Archive.prepare(archive)
         try git(archive, ["config", "user.name", "First"]); try git(archive, ["config", "user.email", "first@localhost"])
-        _ = try Archive.save([Session(id: "archived-only", source: "codex", title: "Archived", messages: [Message(role: "user", text: "ARCHIVED_ONLY_1729")])], to: archive)
+        _ = try Archive.save([Session(id: "archived-only", source: "codex", title: "ARCHIVED_ONLY_1729", usage: [Usage(time: 1, model: "model", input: 17, output: 29)])], to: archive)
         settings.archivePath = archive.path
-        if kind == "corrupt" { try Data("broken".utf8).write(to: archive.appendingPathComponent(".ragdoll-manifest.json")) }
+        if kind == "corrupt" { try Data("broken".utf8).write(to: archive.appendingPathComponent(".ragdoll-usage-manifest.json")) }
     }
     try store.saveSettings(settings)
     let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -30,9 +30,9 @@ import Darwin
         #expect(try store.list(query: "ARCHIVED_ONLY_1729").count == 1)
         #expect(try store.list().count == 2)
         let restored = try Store(path: root.appendingPathComponent("restored.sqlite").path)
-        #expect(try await Archive.restore(from: archive, into: restored, bridge: RuntimeBridge()) == 2)
+        #expect(try Archive.restore(from: archive, into: restored) == 2)
     } else { #expect(try store.list().isEmpty) }
-    if kind == "corrupt" { #expect(try String(contentsOf: archive.appendingPathComponent(".ragdoll-manifest.json"), encoding: .utf8) == "broken") }
+    if kind == "corrupt" { #expect(try String(contentsOf: archive.appendingPathComponent(".ragdoll-usage-manifest.json"), encoding: .utf8) == "broken") }
 }
 
 @Test func backgroundServiceReportsAnInvalidLockInsteadOfClaimingItIsRunning() throws {
@@ -84,12 +84,12 @@ import Darwin
     #expect(process.terminationStatus == 0)
     #expect(try store.list(query: "SERVICE_NATIVE_1729").count == 1)
     let restoredStore = try Store(path: root.appendingPathComponent("restored.sqlite").path)
-    #expect(try await Archive.restore(from: archive, into: restoredStore, bridge: RuntimeBridge()) == 1)
+    #expect(try Archive.restore(from: archive, into: restoredStore) == 1)
     #expect(try restoredStore.list(query: "SERVICE_NATIVE_1729").count == 1)
-    #expect(try git(archive, ["log", "-1", "--format=%s"]) == "chore(archive): sync conversations")
+    #expect(try git(archive, ["log", "-1", "--format=%s"]) == "chore(archive): sync session usage")
     #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
     let head = try git(archive, ["rev-parse", "HEAD"])
-    let transcript = try #require(FileManager.default.enumerator(at: archive, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL }.first { $0.lastPathComponent == "transcript.md" })
+    let transcript = archive.appendingPathComponent("README.md")
     try Data("hand edited".utf8).write(to: transcript)
     try git(root, ["init", "--bare", remote.path])
     let retry = Process(); retry.executableURL = executable; retry.arguments = ["--data-dir", root.path, "--once"]
@@ -149,7 +149,7 @@ import Darwin
     let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let process = Process(); process.executableURL = project.appendingPathComponent(".build/debug/RagdollService"); process.arguments = ["--data-dir", root.path]
     process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
-    try process.run(); defer { if process.isRunning { process.terminate(); process.waitUntilExit() } }
+    try process.run(); defer { if process.isRunning { kill(process.processIdentifier, SIGKILL) } }
     let deadline = Date().addingTimeInterval(20)
     while (try BackgroundService.status(root: root)?.lastArchive) == nil && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
     #expect(try BackgroundService.isRunning(root: root))
@@ -157,8 +157,13 @@ import Darwin
     try Data(raw.utf8).write(to: source.appendingPathComponent("late.jsonl")); try BackgroundService.request(root: root)
     while try store.list(query: "AFTER_LAUNCH_1729").isEmpty && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
     #expect(try store.list(query: "AFTER_LAUNCH_1729").count == 1)
-    let newRecord = archive.appendingPathComponent("sessions/codex")
+    let newRecord = archive.appendingPathComponent("usage/codex")
     while !FileManager.default.fileExists(atPath: newRecord.path) && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
     #expect(FileManager.default.fileExists(atPath: newRecord.path))
     #expect(process.isRunning)
+    settings.backgroundEnabled = false; try store.saveSettings(settings)
+    let stopDeadline = Date().addingTimeInterval(10)
+    while process.isRunning && Date() < stopDeadline { try await Task.sleep(for: .milliseconds(50)) }
+    #expect(!process.isRunning)
+    if !process.isRunning { #expect(process.terminationStatus == 0) }
 }

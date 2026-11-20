@@ -317,6 +317,20 @@
 
 ---
 
+## [2026-11-17 22:04] 按会话来源显示助手品牌头像
+
+- **需求/问题描述**：
+  > 助手头像显示对应的 Codex、Claude 或 DeepSeek 图标，并自行查找图标资源。
+- **实际实现的功能与改动**：
+  - 原生 Codex、Claude Code、Claude 聊天导入及 DeepSeek Harness 使用对应品牌头像；带 nativeSource 的 ACP 复用原生品牌，未知来源保留通用头像。
+  - Lobe Icons 三张 PNG 与 MIT 许可随应用本地打包；Codex 模板随文字颜色变化，Claude/DeepSeek 保留品牌色。应用优先读取 Contents/Resources 中的资源 Bundle，开发运行使用 SwiftPM Bundle。
+  - 来源映射回归先因缺少实现编译失败；最终全部 48 项 Swift 测试通过（21.379 秒），release 构建及 Git diff 检查通过，包内三张图标与源文件逐字节一致。
+  - 更新并重启 `dist/Ragdoll.preview.app`，临时签名完整性和内置助手自检通过；原正式包 SHA-256 不变且签名完整性通过。未截图或验证实际窗口显示，未运行 Claude 接入测试；预览包不用于独立后台服务。
+- **涉及文件**：`Package.swift`、`Sources/Ragdoll/ConversationView.swift`、`Sources/Ragdoll/Resources/AssistantIcons/`、`Tests/RagdollTests/ConversationTests.swift`、`memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。
+- **Git 提交**：用户于 2026-11-20 调整产品范围并移除对话，头像改动随视图移除；未提交原件保存在本机 `.agent/checkpoints/token-only/`。
+
+---
+
 ## [2026-11-18 11:08] 改版对话工作区
 
 - **需求/问题描述**：
@@ -438,5 +452,21 @@
   - 远端分支指向发布提交。GitHub 可以读取 README 和 SVG，仓库首页包含活动概览与热力图引用。
 - **涉及文件** 归档仓库的 `README.md`、`ragdoll-token-activity.svg` 和 `.ragdoll-activity.json`。
 - **Git 提交** `ef4bfcb docs(archive): publish activity README`，已推送到归档仓库 `main`。
+
+---
+
+## [2026-11-20 10:04] 仅保留每个会话的 Token 用量
+
+- **需求/问题描述**：
+  > 去掉对话功能，只保留每个会话的 Token 用量数据。
+- **实际实现的功能与改动**：
+  - 移除对话、续聊、迁移、ACP、聊天导入及其四项运行依赖；界面保留首页、会话用量明细和设置，支持会话名称/项目/ID 搜索及来源/项目/日期筛选。
+  - 会话只保存身份、名称、来源、项目、时间、模型和输入/输出/缓存 Token 明细；保留热力图、成本预算、请求去重、后台扫描和 Git 用量备份。
+  - 旧 SQLite 先建立恢复副本，事务中删除正文、全文搜索和重复摘要，再回收空间；新归档只生成用量 JSON 与活动报告，旧 Git 历史和源日志保留。
+  - 回归先失败，实施后 Swift 44 项、允许的 Node 10 项及 TypeScript 检查通过。真实旧库隔离迁移的 861 个会话逐条一致，1,786,507,264 → 4,554,752 字节。
+  - release 构建、原有效 Apple Development 身份签名与深度校验、包内 usage-only 自检通过。正式应用已启动，原有 861 个会话和 21,767 条用量完整保留；扫描后 863 个会话，索引约 4.37 MiB。恢复副本约 1.03 GiB，旧归档仍占用原有空间。
+  - 未进行截图、视觉或窗口交互验证，未运行 Claude 测试。工作区已有头像改动原件保存在忽略目录 `.agent/checkpoints/token-only/`。
+- **涉及文件**：`Sources/Ragdoll/`、`Sources/RagdollCore/`、`Tests/`、`runtime/src/`、`runtime/test/`、`runtime/package.json`、`runtime/package-lock.json`、`.github/workflows/release.yml`、`README.md`、`docs/`、`memory/`。
+- **Git 提交**：待提交。
 
 ---

@@ -12,9 +12,8 @@ struct RagdollApp: App {
         .defaultSize(width: 1380, height: 900)
         .commands {
             CommandGroup(after: .newItem) {
-                Button("导入 Claude 导出包…") { model.importDesktop() }.keyboardShortcut("i", modifiers: [.command, .shift])
-                Button("刷新会话") { Task { await model.refresh() } }.keyboardShortcut("r")
-                Button("立即归档") { Task { await model.archiveNow() } }.keyboardShortcut("s", modifiers: [.command, .shift])
+                Button("刷新用量") { Task { await model.refresh() } }.keyboardShortcut("r")
+                Button("立即备份用量") { Task { await model.archiveNow() } }.keyboardShortcut("s", modifiers: [.command, .shift])
             }
         }
     }

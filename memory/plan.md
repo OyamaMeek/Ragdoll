@@ -1,5 +1,20 @@
 # Ragdoll 实施计划
 
+## 仅保留会话 Token 用量（2026-11-20）
+
+- 用户已决定移除对话功能。保留会话身份、名称、来源、项目、时间、模型及输入/输出/缓存 Token 明细，维持去重、热力图、价格、预算、后台扫描及 Git 用量备份。
+- 分段实施：先通过回归约束精简编码、旧 SQLite 迁移及扫描输出；再删除对话/续聊/迁移/ACP/聊天导入与相关依赖，接入会话用量列表；最后将归档切换为仅含用量的 JSON，更新文档和完整验证。
+- 旧 SQLite 迁移前通过 SQLite 备份建立恢复点，事务内从 summary 保留用量并删除正文/搜索/重复摘要，VACUUM 回收空间。旧 Git 归档仅读取 metadata，不再读取正文、原始日志及附件；新归档采用独立 usage 路径与清单。保留既有 Git 历史和源工具日志，不重写远端历史。
+- 工作区已有头像任务的修改已保存到忽略目录 `.agent/checkpoints/token-only/`；删除被本需求取代的对话源码和测试前核查全部引用。
+- 验证真实旧库迁移、扫描隐私、会话统计与去重、Git 外部修改保护/普通推送、Swift 测试、TypeScript 检查、Node 测试、发布构建和打包自检；不截图、不执行 Claude 接入测试。完成后原子提交并普通推送。
+
+## 助手品牌头像
+
+- 按会话 `nativeSource ?? source` 显示 Codex、Claude（含官方聊天导入）、DeepSeek 图标；未知 ACP 保留通用头像。复用现有 28 点头像布局，Codex 单色随系统主题，其他品牌保留原色。
+- 使用 Lobe Icons 的静态 PNG，随 Swift Package 资源打包并保留 MIT 许可，不增加依赖或网络加载。
+- 范围：ConversationView 的来源传递及头像、Package.swift、三张资源及许可、ConversationTests 和任务记录；无存储、协议、fixtures、配置和公开导出变更。
+- 先运行来源映射失败回归，再实现并验证资源加载、全部 Swift 测试、release 构建及预览包签名/助手自检；保留正式包，不截图或运行 Claude 接入测试。提交并普通推送。
+
 ## 台前调度图标
 
 - 当前预览包的 Info.plist、ICNS 和 LaunchServices 登记正确；运行中应用与磁盘图标一致，隔离 AppKit 启动的 applicationIconImage 在 256 像素下也与包内资源一致。

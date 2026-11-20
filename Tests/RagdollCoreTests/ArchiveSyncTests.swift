@@ -70,21 +70,10 @@ import Testing
     #expect(throws: (any Error).self) { try ArchiveSync.push(root: local, remote: "--all", branch: "archive") }
 }
 
-@Test func archiveSyncSettingsDecodeOlderRecordsAndMigrationSurvivesRefresh() throws {
+@Test func archiveSyncSettingsDecodeOlderRecords() throws {
     let old = try JSONEncoder().encode(Settings())
     var data = try JSONSerialization.jsonObject(with: old) as! [String: Any]
     data.removeValue(forKey: "archiveRemote"); data.removeValue(forKey: "backgroundEnabled")
     let settings = try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: data))
     #expect(settings.archiveRemote == nil)
-    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
-    let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
-    var migrated = Session(id: "new", source: "codex", title: "Migrated")
-    migrated.migration = MigrationOrigin(sourceID: "old", source: "dsh", sourceNativeID: "old-native", created: 1)
-    try store.save(migrated)
-    migrated.migration = nil; try store.save(migrated)
-    #expect(try store.session("new")?.migration?.sourceID == "old")
-    migrated.home = "/same"; try store.save(migrated)
-    var alias = Session(id: "alias", nativeID: migrated.nativeID, source: "acp", title: "Alias", home: "/same")
-    alias.nativeSource = "codex"; try store.save(alias)
-    #expect(try store.session("alias")?.migration?.sourceID == "old")
 }

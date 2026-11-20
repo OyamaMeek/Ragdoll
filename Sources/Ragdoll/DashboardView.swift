@@ -40,7 +40,7 @@ struct DashboardView: View {
                     .buttonStyle(.plain)
                     .accessibilityHint(useDeepSeekOffPeakRate ? "切换到峰价" : "切换到谷价")
                     metric("总 Token", value: compact(stats.tokens), note: "\(stats.missingUsageSessions) 个会话缺少用量", icon: "chart.bar.xaxis")
-                    metric("会话", value: "\(stats.sessions)", note: "本地日志与导入记录", icon: "bubble.left.and.bubble.right")
+                    metric("会话", value: "\(stats.sessions)", note: "已索引的会话用量", icon: "chart.bar.doc.horizontal")
                 }
                 if model.settings.showWeeklyBudget == true {
                     Card {

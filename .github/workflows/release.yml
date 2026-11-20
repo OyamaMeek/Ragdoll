@@ -42,18 +42,13 @@ jobs:
           fi
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" packaging/Info.plist
 
-      - name: Install Codex for migration tests
-        run: |
-          npm install --global @openai/codex@0.147.0 --ignore-scripts
-          codex --version
-
       - name: Build application
         run: bash scripts/build.sh
 
       - name: Check runtime
         run: |
           npm --prefix runtime run typecheck
-          node --test --test-skip-pattern='[Cc]laude' runtime/test/{acp-state,integration,logs,migration,registry}.test.ts
+          node --test --test-skip-pattern='[Cc]laude' runtime/test/*.test.ts
 
       - name: Test Swift
         run: swift test --disable-sandbox --no-parallel

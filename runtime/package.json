@@ -9,12 +9,6 @@
     "typecheck": "tsc --noEmit",
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/main.mjs"
   },
-  "dependencies": {
-    "@agentclientprotocol/sdk": "2.7.0",
-    "@anthropic-ai/claude-agent-sdk": "0.3.325",
-    "fflate": "0.8.3",
-    "tar": "7.5.23"
-  },
   "devDependencies": {
     "@types/node": "^26.0.0",
     "esbuild": "0.28.2",

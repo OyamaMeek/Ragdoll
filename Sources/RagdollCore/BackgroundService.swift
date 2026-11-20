@@ -113,8 +113,8 @@ public actor BackgroundWorker {
                 if let fatalFailure { throw NSError(domain: "Ragdoll.Service", code: 2, userInfo: [NSLocalizedDescriptionKey: fatalFailure]) }
                 if loadedArchive != settings.archivePath {
                     state.scan = "正在读取 Git 仓库"; try publish()
-                    let store = self.store, bridge = self.bridge
-                    let count = try await Task.detached(priority: .utility) { try await Archive.restore(from: URL(fileURLWithPath: settings.archivePath), into: store, bridge: bridge) }.value
+                    let store = self.store
+                    let count = try await Task.detached(priority: .utility) { try Archive.restore(from: URL(fileURLWithPath: settings.archivePath), into: store) }.value
                     loadedArchive = settings.archivePath
                     state.archive = "已读取 Git 仓库 · \(count) 个会话"
                 }
@@ -143,7 +143,7 @@ public actor BackgroundWorker {
                     state.archive = "正在保存并提交"; try publish()
                     let store = self.store
                     let result = try await Task.detached(priority: .utility) {
-                        let sessions = try store.list().filter { !settings.excludedProjects.contains($0.project) }.compactMap { try store.session($0.id) }
+                        let sessions = try store.list().filter { !settings.excludedProjects.contains($0.project) }
                         return try Archive.save(sessions, to: URL(fileURLWithPath: settings.archivePath), sourceRoots: settings.locations.map(\.path), prices: settings.prices)
                     }.value
                     state.archive = result.commit.map { "本地归档已提交 · \($0)" } ?? "本地归档已是最新"

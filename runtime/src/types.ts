@@ -1,21 +1,13 @@
 export type Source = 'codex' | 'claude' | 'dsh' | 'desktop' | 'acp';
 export type Data = Record<string, unknown>;
-export interface Message { id: string; role: string; text: string; time: number; kind: string }
 export interface Usage { id: string; time: number; model: string; input: number; output: number; cacheRead: number; cacheWrite: number }
 export interface Session {
   id: string; nativeID: string; source: Source; title: string; project: string; home: string;
-  created: number; updated: number; parentID?: string; provider?: string; instanceID?: string;
-  messages: Message[]; usage: Usage[]; files: string[]; warnings: string[];
+  created: number; updated: number; parentID?: string; provider?: string;
+  usage: Usage[]; warnings: string[];
   nativeSource?: string;
-  nativeStarted?: boolean;
-  migration?: { sourceID: string; source: string; sourceNativeID: string; created: number; attachments?: string[] };
 }
 export interface Location { source: 'codex' | 'claude' | 'dsh'; path: string }
-export interface AgentConfig {
-  id: string; name: string; kind: 'codex' | 'claude' | 'dsh' | 'acp';
-  command: string; args: string[]; env: Record<string, string>; version?: string;
-  registryID?: string; installPath?: string; protocol?: number;
-}
 export const object = (value: unknown): Data => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Data : {};
 export const string = (value: unknown, fallback = ''): string => typeof value === 'string' ? value : fallback;
 export const number = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;

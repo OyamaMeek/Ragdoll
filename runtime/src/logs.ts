@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { readdir, stat, realpath, readFile } from 'node:fs/promises';
+import { readdir, stat, realpath } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { createZstdDecompress, createGunzip } from 'node:zlib';
@@ -88,9 +88,8 @@ export async function parseFile(source: Location['source'], path: string, home =
   const session: Session = {
     id: '', nativeID: basename(path).replace(/\.jsonl(?:\.(?:zstd|zst))?$/, ''), source, home,
     title: '', project: '', created: file.birthtimeMs, updated: file.mtimeMs,
-    messages: [], usage: [], files: [path], warnings: [],
+    usage: [], warnings: [],
   };
-  const messages = new Map<string, Session['messages'][number]>();
   const counted = new Map<string, Usage>();
   const canonical = new Map<string, Usage>();
   let model = '', inherited = false, seedLength = 0, line = 0;
@@ -101,11 +100,6 @@ export async function parseFile(source: Location['source'], path: string, home =
     const p = object(e.payload), d = object(e.data), m = object(e.message);
     const time = timestamp(e.timestamp ?? e.time);
     if (time) { firstTime = Math.min(firstTime, time); lastTime = Math.max(lastTime, time); }
-    const addMessage = (role: string, text: string, id = string(e.uuid ?? e.seq, String(line)), kind = 'text') => {
-      if (!text) return;
-      messages.set(id, { id, role, text, time: time || file.mtimeMs, kind });
-      if (!session.title && role === 'user') session.title = source === 'codex' ? codexPromptTitle(text) : text.replace(/\s+/g, ' ').slice(0, 100);
-    };
     if (source === 'codex') {
       if (e.type === 'session_meta') {
         session.nativeID = string(p.id ?? p.session_id, session.nativeID);
@@ -128,15 +122,14 @@ export async function parseFile(source: Location['source'], path: string, home =
           previous = total;
         }
       }
-      if (e.type === 'response_item' && p.type === 'message') addMessage(string(p.role, 'assistant'), content(p.content));
-      if (e.type === 'response_item' && /tool_call|function_call/.test(string(p.type))) addMessage('tool', `${string(p.name)}\n${content(p.arguments ?? p.input ?? p.output)}`, string(p.call_id, String(line)), 'tool');
+      if (!session.title && e.type === 'response_item' && p.type === 'message' && p.role === 'user') session.title = codexPromptTitle(content(p.content));
     }
     if (source === 'claude') {
       session.nativeID = string(e.sessionId, session.nativeID);
       session.project ||= string(e.cwd);
       if (e.type === 'summary') session.title = string(e.summary, session.title);
       if (e.type === 'custom-title') session.title = string(e.customTitle, session.title);
-      if (e.type === 'user' || e.type === 'assistant') addMessage(string(e.type), content(m.content));
+      if (!session.title && e.type === 'user') session.title = content(m.content).replace(/\s+/g, ' ').slice(0, 100);
       if (e.type === 'assistant' && Object.keys(object(m.usage)).length) {
         const id = string(m.id ?? e.requestId ?? e.uuid, String(line));
         counted.set(id, usage(id, time, string(m.model), object(m.usage), false));
@@ -155,43 +148,21 @@ export async function parseFile(source: Location['source'], path: string, home =
       if (e.type === 'session/end-seed') { inherited = false; continue; }
       if (inherited || (seedLength > 0 && number(e.seq) < seedLength)) continue;
       if (e.type === 'session/title') session.title = string(d.title, session.title);
-      if (e.type === 'user/message' && object(d.source).kind === 'user') addMessage('user', content(d.content));
+      if (!session.title && e.type === 'user/message' && object(d.source).kind === 'user') session.title = content(d.content).replace(/\s+/g, ' ').slice(0, 100);
       if (e.type === 'assistant/message') {
         const message = object(d.message), route = object(message.source);
         model = string(route.model, model);
         session.provider = string(route.provider) || session.provider;
-        addMessage('assistant', content(message.content ?? d.content));
         if (Object.keys(object(d.usage)).length) counted.set(String(e.seq), usage(String(e.seq), time, model, object(d.usage), false));
       }
-      if (e.type === 'tool/call') addMessage('tool', `${string(d.name)}\n${content(d.arguments)}`, String(e.seq), 'tool');
-      if (e.type === 'tool/result') addMessage('tool', content(d.result ?? d.content), String(e.seq), 'tool');
     }
   }
   session.id = sessionKey(source, `${home}\0${session.nativeID}`);
-  session.messages = [...messages.values()];
   session.usage = [...(canonical.size ? canonical : counted).values()];
   session.title ||= session.nativeID;
   if (Number.isFinite(firstTime)) session.created = Math.min(session.created || firstTime, firstTime);
   session.updated = lastTime || file.mtimeMs;
   session.warnings = [...new Set(session.warnings)];
-  let migrationData: Buffer;
-  try { migrationData = await readFile(path + '.ragdoll.json'); }
-  catch (error) { if (object(error).code === 'ENOENT') return session; throw error; }
-  {
-    const migration = object(JSON.parse(migrationData.toString('utf8')));
-    if (typeof migration.sourceID !== 'string' || typeof migration.source !== 'string' || typeof migration.sourceNativeID !== 'string' || typeof migration.created !== 'number') throw new Error('迁移来源记录无效');
-    session.migration = migration as unknown as NonNullable<Session['migration']>;
-    if (typeof migration.title === 'string') session.title = migration.title;
-    session.files.push(path + '.ragdoll.json');
-    if (migration.files !== undefined) {
-      const root = (await realpath(home)) + '/.ragdoll-migrations/';
-      if (!Array.isArray(migration.files) || migration.files.some(p => typeof p !== 'string')) throw new Error('迁移附件清单无效');
-      for (const file of migration.files as string[]) { if (!(await realpath(file)).startsWith(root) || !(await stat(file)).isFile()) throw new Error('迁移附件清单越界或文件无效'); }
-      session.files.push(...migration.files as string[]);
-    }
-    if (migration.attachments !== undefined && (!Array.isArray(migration.attachments)
-      || migration.attachments.some(p => typeof p !== 'string' || !Array.isArray(migration.files) || !migration.files.includes(p)))) throw new Error('迁移附件来源无效');
-  }
   return session;
 }
 

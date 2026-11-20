@@ -16,26 +16,27 @@ func testDirectory() throws -> URL {
     return String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-@Test func storePersistsAndSearchesActualMessages() throws {
+@Test func storePersistsUsageAndSearchesSessionMetadata() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
-    let session = Session(id: "one", source: "claude", title: "Build", messages: [Message(role: "user", text: "unique searchable text")])
+    let session = Session(id: "one", source: "claude", title: "Build searchable", project: "/work", usage: [Usage(time: 1, model: "test", input: 17, output: 29)])
     #expect(try store.save(session))
     #expect(try !store.save(session))
     #expect(try store.list(query: "searchable").count == 1)
     #expect(try store.list(query: "%").isEmpty)
-    #expect(try store.session("one")?.messages.first?.text == "unique searchable text")
+    #expect(try store.list(query: "/work").count == 1)
+    #expect(try store.session("one")?.tokens == 46)
 }
 
 @Test func olderSourceDataCannotReplaceNewerRepositoryHistory() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
-    let archived = Session(id: "one", source: "codex", title: "Newer in Git", updated: 20, messages: [Message(role: "user", text: "NEWER_GIT_HISTORY")])
+    let archived = Session(id: "one", source: "codex", title: "Newer in Git", updated: 20, usage: [Usage(time: 1, model: "test", input: 17, output: 29)])
     try store.save(archived)
     let stale = Session(id: "one", source: "codex", title: "Old source", updated: 10)
     #expect(try !store.save(stale))
     #expect(try store.session("one") == archived)
-    var fresh = archived; fresh.updated = 30; fresh.messages.append(Message(role: "assistant", text: "NEW_LOCAL_DATA"))
+    var fresh = archived; fresh.updated = 30; fresh.usage.append(Usage(time: 2, model: "test", input: 3, output: 4))
     #expect(try store.save(fresh))
     #expect(try store.session("one") == fresh)
 }
@@ -63,13 +64,13 @@ func testDirectory() throws -> URL {
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     try Data("outside".utf8).write(to: root.appendingPathComponent("unrelated.txt"))
     try git(root, ["add", "unrelated.txt"])
-    let session = Session(id: "codex:one", source: "codex", title: "Hello", messages: [Message(role: "user", text: "save me")])
+    let session = Session(id: "codex:one", source: "codex", title: "Hello")
     let first = try Archive.save([session], to: root)
     #expect(first.commit != nil)
     #expect(try !git(root, ["ls-tree", "--name-only", "HEAD"]).contains("unrelated.txt"))
     #expect(try git(root, ["diff", "--cached", "--name-only"]) == "unrelated.txt")
     #expect(try Archive.save([session], to: root).commit == nil)
-    let transcript = root.appendingPathComponent("sessions/codex/codex_one/transcript.md")
+    let transcript = root.appendingPathComponent("usage/codex/codex_one.json")
     try Data("hand edited".utf8).write(to: transcript)
     #expect(throws: (any Error).self) { try Archive.save([session], to: root) }
     #expect(try String(contentsOf: transcript, encoding: .utf8) == "hand edited")
@@ -90,7 +91,7 @@ func testDirectory() throws -> URL {
     #expect(report.contains("总 Token | 1,000,000 | 1 个会话缺少用量"))
     #expect(report.contains("会话 | 2 |"))
     #expect(report.contains("示例项目 | 1,000,000 | 1 | $6.00"))
-    #expect(report.contains("[最近 &#124; &#91;会话&#93; &lt;img&gt;](sessions/codex/new_session/transcript.md)"))
+    #expect(report.contains("[最近 &#124; &#91;会话&#93; &lt;img&gt;](usage/codex/new_session.json)"))
     let recentRange = try #require(report.range(of: "最近 &#124;"))
     let olderRange = try #require(report.range(of: "旧会话"))
     #expect(recentRange.lowerBound < olderRange.lowerBound)
@@ -109,7 +110,7 @@ func testDirectory() throws -> URL {
     let refreshed = try git(root, ["show", "HEAD:README.md"])
     #expect(refreshed.contains("更新标题"))
     #expect(refreshed.contains("估算总成本 | $1.00 |"))
-    let manifest = try git(root, ["show", "HEAD:.ragdoll-manifest.json"])
+    let manifest = try git(root, ["show", "HEAD:.ragdoll-usage-manifest.json"])
     #expect(!manifest.contains("README.md"))
 }
 
@@ -152,17 +153,17 @@ func testDirectory() throws -> URL {
     #expect(throws: (any Error).self) { try Archive.save([], to: root.appendingPathComponent("archive"), sourceRoots: [root.path]) }
 }
 
-@Test func provenACPAliasesCountOnceAndPreserveRawSources() throws {
+@Test func legacyACPAliasesCountOnceAndPreserveUsage() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
     let usage = Usage(id: "request-1", time: 1_800_000_000_000, model: "test", input: 100, output: 10)
-    let native = Session(id: "native", nativeID: "same-id", source: "codex", title: "Native", home: "/source", usage: [usage], files: ["/source/rollout.jsonl"])
-    var alias = Session(id: "acp", nativeID: "same-id", source: "acp", title: "ACP", home: "/source", files: ["/app/events.jsonl"])
+    let native = Session(id: "native", nativeID: "same-id", source: "codex", title: "Native", home: "/source", usage: [usage])
+    var alias = Session(id: "acp", nativeID: "same-id", source: "acp", title: "ACP", home: "/source")
     alias.nativeSource = "codex"
     try store.save(alias); try store.save(native)
     #expect(try store.list().count == 1)
     #expect(try store.list().first?.tokens == 110)
-    #expect(try store.session("acp")?.files.count == 2)
+    #expect(try store.session("acp")?.usage == [usage])
     #expect(try store.session("acp")?.canonicalID == "native")
 }
 
@@ -171,7 +172,7 @@ func testDirectory() throws -> URL {
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     let session = Session(id: "one", source: "codex", title: "One")
     _ = try Archive.save([session], to: root)
-    let path = "sessions/codex/one/transcript.md", url = root.appendingPathComponent(path)
+    let path = "usage/codex/one.json", url = root.appendingPathComponent(path)
     let original = try Data(contentsOf: url)
     try Data("external staged edit".utf8).write(to: url); try git(root, ["add", "--", path]); try original.write(to: url)
     #expect(throws: (any Error).self) { try Archive.save([session], to: root) }
@@ -185,9 +186,9 @@ func testDirectory() throws -> URL {
     var active = Session(id: "active", source: "codex", title: "Active")
     let excluded = Session(id: "excluded", source: "codex", title: "Excluded")
     _ = try Archive.save([active, excluded], to: root)
-    let path = "sessions/codex/excluded/transcript.md"
+    let path = "usage/codex/excluded.json"
     try Data("keep staged".utf8).write(to: root.appendingPathComponent(path)); try git(root, ["add", "--", path])
-    active.messages.append(Message(role: "user", text: "new active work"))
+    active.usage.append(Usage(time: 1, model: "test", input: 3, output: 4))
     _ = try Archive.save([active], to: root)
     #expect(try git(root, ["diff", "--cached", "--name-only"]) == path)
     #expect(try git(root, ["show", ":\(path)"]) == "keep staged")
@@ -199,5 +200,5 @@ func testDirectory() throws -> URL {
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     let sessions = (0..<1500).map { Session(id: String(repeating: "a", count: 180) + String($0), source: "codex", title: "History \($0)") }
     #expect(try Archive.save(sessions, to: root).commit != nil)
-    #expect(try git(root, ["ls-tree", "-r", "--name-only", "HEAD"]).components(separatedBy: .newlines).count == 4504)
+    #expect(try git(root, ["ls-tree", "-r", "--name-only", "HEAD"]).components(separatedBy: .newlines).count == 1504)
 }

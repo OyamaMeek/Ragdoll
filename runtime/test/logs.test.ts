@@ -63,12 +63,11 @@ test('Codex title changes invalidate only the matching incremental session', asy
   assert.deepEqual(titles, ['再次命名', '修复会话标题']);
 });
 
-test('Codex missing title index uses the actual request and preserves messages', async t => {
+test('Codex missing title index uses the actual request as its session name', async t => {
   const home = await codexHome(t);
   const [session] = await scan([{ source: 'codex', path: home }]);
   assert.equal(session.title, '修复会话标题');
-  assert.equal(session.messages.length, 3);
-  assert.match(session.messages[0].text, /^# AGENTS.md/);
+  assert.equal('messages' in session, false);
   const instructionsOnly = await codexHome(t, ['<environment_context>context</environment_context>']);
   assert.equal((await scan([{ source: 'codex', path: instructionsOnly }]))[0].title, 'thread-one');
   const attached = await codexHome(t, ['# Files mentioned by the user:\n\n## My request:\n添加小标题\n第二行']);
@@ -113,11 +112,11 @@ test('dsh version selection reads the latest file only', async () => {
   assert.equal(session.title, 'Build script tidy');
   assert.equal(session.usage.length, 2);
   assert.equal(session.usage[0].cacheRead, 1000);
-  assert.equal(session.messages.filter(m => m.role === 'user').length, 1);
+  assert.equal('messages' in session, false);
 });
 
-test('dsh compressed logs expose messages and usage', async () => {
+test('dsh compressed logs expose usage without messages', async () => {
   const sessions = await scan([{ source: 'dsh', path: fixture('dsh-skills') }]);
   assert.equal(sessions.length, 3);
-  assert.ok(sessions.some(s => s.messages.length > 0));
+  assert.ok(sessions.every(s => !('messages' in s)));
 });

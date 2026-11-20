@@ -6,7 +6,7 @@
 
 - macOS 15+、Apple Silicon。
 - Xcode 16.4+、Swift 6.1、Node 26。
-- Git；真实连接和对话检查需要对应原生工具已安装并登录。
+- Git；用量读取仅需要已有的本地日志。
 
 ## 构建与运行
 
@@ -17,7 +17,7 @@ bash scripts/build.sh
 open dist/Ragdoll.app
 ```
 
-脚本安装 runtime 依赖、构建 release 应用，并下载、校验和打包 Node 官方发行包。安装包内包含 Node 和 SDK 助手，运行打包应用无需另装 Node。
+脚本安装构建依赖、构建 release 应用，并下载、校验和打包 Node 官方发行包。安装包内包含 Node 和用量读取助手，运行打包应用无需另装 Node。运行时仅使用 Node 标准库。
 
 开发运行：
 
@@ -49,15 +49,15 @@ npm --prefix runtime run typecheck
 swift test --disable-sandbox --no-parallel
 ```
 
-Swift 验证包含真实助手的大消息传输回归，需要先构建 runtime。迁移测试还需要可用的 `codex` 命令；CI 安装固定版本 `@openai/codex@0.147.0`。
+Swift 验证包含真实助手扫描、旧 SQLite 迁移、用量去重、Git 保护与独立后台进程，需要先构建 runtime。
 
 从 `runtime` 目录运行允许的 Node 测试：
 
 ```sh
-node --test --test-skip-pattern='[Cc]laude' test/acp-state.test.ts test/integration.test.ts test/logs.test.ts test/migration.test.ts test/registry.test.ts
+node --test --test-skip-pattern='[Cc]laude' test/*.test.ts
 ```
 
-需要本机 DeepSeek Harness 的迁移恢复及续聊测试通过 `RAGDOLL_MIGRATION_LIVE=dsh` 开启，云端构建默认跳过。Claude 的真实对话与相关迁移方向尚未验证；当前检查范围排除 Claude 测试及导出包测试文件。实际执行结果见[验证记录](VALIDATION.md)。
+当前检查按用户要求排除 Claude 测试。可用 `RAGDOLL_VERIFY_DATABASE=/绝对路径/index.sqlite swift test --disable-sandbox --filter realDatabaseCopy` 验证真实旧库的隔离副本迁移；该检查只读源库，逐条比较迁移前后全部会话和用量。实际执行结果见[验证记录](VALIDATION.md)。
 
 ## 自动发布
 
