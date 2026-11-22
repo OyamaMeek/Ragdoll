@@ -557,6 +557,6 @@
   - 使用真实 Store 与 AppModel 的回归先缺少属性失败后通过，覆盖最近项目优先、重复项目去重和更新后重排。Swift 全套报告 65 项通过（14.873 秒，4 项条件检查跳过）；未新增截图或运行 Claude 测试。
   - 同证书 release、深度签名和包内自检通过，已正常启动新版 Ragdoll（PID 39325），ChatGPT 保持原 PID 19563。
 - **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/CodexMessageScheduleView.swift`、`Tests/RagdollTests/StartupTests.swift`、`docs/USAGE.md`、`docs/CHANGELOG.md` 和 `memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`611a724 fix(codex): prioritize recently used projects`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
