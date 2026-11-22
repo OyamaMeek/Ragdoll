@@ -513,6 +513,6 @@
   - 回归先失败后通过；最终 TypeScript、允许的 Node 17 项和 Swift 套件 57 项通过，显式真实自动调度检查单独通过。两个真实账号仅登记未来窗口，重复检查和独立后台进程均未发送推理。
   - 同证书签名打包、深度签名、包内自检、包内取消保护与独立后台等待登记通过，已正常启动新版应用。未实测跨越完整 5h、休眠恢复或视觉效果；未运行 Claude 测试，真实自动开关保持默认关闭。
 - **涉及文件**：`Sources/RagdollCore/CodexAccount.swift`、`Sources/RagdollCore/CodexAutoActivation.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/CodexAccountsView.swift`、`Tests/RagdollCoreTests/CodexAutoActivationTests.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/`、`runtime/test/`、`README.md`、`docs/` 和 `memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`0ec3ce9 feat(codex): activate windows automatically after reset`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
