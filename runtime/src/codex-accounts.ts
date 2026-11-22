@@ -49,7 +49,7 @@ export function parseCodexSwitchResult(value: unknown, id: string) {
     (result.localProjectPreservation != null && !['verified', 'noOp'].includes(string(preservation.status))));
   return attention
     ? { status: 'attention', message: '账号登录已切换，但历史数据同步或客户端状态仍需检查，请在 Codex Tools 中确认后使用。' }
-    : { status: 'switched', message: '已切换本机登录。已打开的 Codex 或 CLI 进程可能保留旧登录，请重新打开后使用。' };
+    : { status: 'switched', message: '已切换本机登录。' };
 }
 
 async function runTools(args: string[]): Promise<unknown> {

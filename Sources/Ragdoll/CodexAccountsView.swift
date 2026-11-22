@@ -41,7 +41,7 @@ struct CodexAccountsView: View {
                         detail
                     }
                     Text("自动激活会在当前窗口刷新后发送一次 hello，消耗少量额度。保持 Ragdoll 运行，或启用独立后台服务以便退出后继续；休眠期间不发送，恢复后检查。推理失败或进程中断后暂停，检查结果后关闭再开启。").font(.caption).foregroundStyle(.secondary)
-                    Text("账号来自本机 Codex Tools。切换更新本机登录，已打开的 Codex 或 CLI 进程需重新打开后使用新账号。").font(.caption).foregroundStyle(.secondary)
+                    Text("账号来自本机 Codex Tools。切换后自动退出并重新打开 ChatGPT（Codex 桌面端），会中断运行中的任务。独立 CLI 进程请手动重新打开。").font(.caption).foregroundStyle(.secondary)
                 }.padding(28)
             }
         }

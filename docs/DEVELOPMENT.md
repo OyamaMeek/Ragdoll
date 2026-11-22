@@ -59,6 +59,8 @@ node --test --test-skip-pattern='[Cc]laude' test/*.test.ts
 
 当前检查按用户要求排除 Claude 测试。可用 `RAGDOLL_VERIFY_DATABASE=/绝对路径/index.sqlite swift test --disable-sandbox --filter realDatabaseCopy` 验证真实旧库的隔离副本迁移；该检查只读源库，逐条比较迁移前后全部会话和用量。实际执行结果见[验证记录](VALIDATION.md)。
 
+在有桌面会话的 macOS 上，使用 `RAGDOLL_DESKTOP_LIVE=1 swift test --disable-sandbox --filter desktopReopenWaits` 验证自动重新打开。测试编译并启动项目内独立 AppKit 应用，检查旧进程退出、新 PID 和拒绝退出；不会操作当前 ChatGPT 或真实账号。
+
 ## 自动发布
 
 推送 `vX.Y.Z` 版本标签后，[Release macOS workflow](https://github.com/OyamaMeek/Ragdoll/actions/workflows/release.yml) 自动编译、检查并发布到 [GitHub Releases](https://github.com/OyamaMeek/Ragdoll/releases)。例如：

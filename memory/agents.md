@@ -1,6 +1,6 @@
 # 开发环境
 
-- 当前任务（2026-11-22）：Codex 账号按 5h 窗口重置自动发送 hello；复用 RuntimeBridge、Codex Tools、ServiceLease 和既有后台服务，单代理、Ponytail 与回归测试，不截图、不运行 Claude 测试。
+- 当前任务（2026-11-22）：切换账号后自动重新打开 ChatGPT（com.openai.codex）；复用账号切换和锁，采用 AppKit 正常退出/启动，单代理、Ponytail、TDD 与完成前验证。独立真实应用验证进程，不退出当前对话客户端、不截图、不运行 Claude 测试。
 
 - 当前代理：Codex；单代理执行，详见 `memory/progress.md`。
 - Swift 6.1、SwiftUI、macOS 15+、GRDB；TypeScript 助手使用 Node。

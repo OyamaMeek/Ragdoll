@@ -516,3 +516,18 @@
 - **Git 提交**：`0ec3ce9 feat(codex): activate windows automatically after reset`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-22 11:26] 切换账号后自动重新打开 ChatGPT
+
+- **需求/问题描述**：
+  > 点击切换后桌面端没有变化，设置切换后自动重新打开。
+- **实际实现的功能与改动**：
+  - 账号切换确认成功后，正常退出并重新打开 ChatGPT（com.openai.codex）；等待旧进程退出后再启动，保留账号操作锁，不使用强制终止或 AppleScript 自动化权限。
+  - 历史同步警告时先显示警告；退出被阻止、15 秒未退出或启动失败时明确显示登录已切换及手动处理提示，保留已返回的账号列表。更新账号页与使用文案，独立 CLI 仍需手动重开。
+  - 生命周期回归先缺少实现失败，独立真实 AppKit 应用的首次启动、旧 PID 退出、新 PID 和拒绝退出两项检查通过（19.881 秒）。Swift 全套通过（报告 59 项、15.708 秒，4 项条件检查跳过）；TypeScript、允许的 Node 17 项通过（3 项真实请求跳过）。
+  - 同证书 release 打包、深度签名和包内自检通过，已正常启动新版 Ragdoll（PID 29331）。当前 ChatGPT PID 19563 保持不变，无残留测试应用。
+  - 未切换真实账号或重启当前对话客户端，未验证真实客户端重开后的身份或视觉效果，未运行 Claude 测试。自动重新打开会中断桌面端运行中的任务。
+- **涉及文件**：`Sources/Ragdoll/CodexDesktop.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/CodexAccountsView.swift`、`Tests/RagdollTests/CodexDesktopTests.swift`、`runtime/src/codex-accounts.ts`、`docs/USAGE.md`、`docs/DEVELOPMENT.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md` 和 `memory/`。
+- **Git 提交**：待提交。
+
+---

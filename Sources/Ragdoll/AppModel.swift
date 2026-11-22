@@ -107,6 +107,16 @@ final class AppModel: ObservableObject {
                 if result.status == "attention" { codexAccountsError = text }
                 else { codexAccountsMessage = text }
             }
+            if action == "switch", result.status == "switched" {
+                codexAccountsMessage = "本机登录已切换，正在重新打开 ChatGPT…"
+                do {
+                    try await CodexDesktop.reopen()
+                    codexAccountsMessage = "\(name.map { "\($0)：" } ?? "")已切换本机登录并重新打开 ChatGPT。独立 CLI 进程请手动重新打开。"
+                } catch {
+                    codexAccountsMessage = nil
+                    codexAccountsError = "本机登录已切换。\(error.localizedDescription)"
+                }
+            }
             if action == "warmup" {
                 try CodexAutoActivation.noteManualResult(root: root, id: id, result: result)
                 codexAutoStates = try CodexAutoActivation.load(root: root)
