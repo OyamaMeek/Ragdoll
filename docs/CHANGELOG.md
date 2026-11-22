@@ -528,6 +528,6 @@
   - 同证书 release 打包、深度签名和包内自检通过，已正常启动新版 Ragdoll（PID 29331）。当前 ChatGPT PID 19563 保持不变，无残留测试应用。
   - 未切换真实账号或重启当前对话客户端，未验证真实客户端重开后的身份或视觉效果，未运行 Claude 测试。自动重新打开会中断桌面端运行中的任务。
 - **涉及文件**：`Sources/Ragdoll/CodexDesktop.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/CodexAccountsView.swift`、`Tests/RagdollTests/CodexDesktopTests.swift`、`runtime/src/codex-accounts.ts`、`docs/USAGE.md`、`docs/DEVELOPMENT.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md` 和 `memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`e94c8b7 fix(codex): reopen desktop after account switch`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
