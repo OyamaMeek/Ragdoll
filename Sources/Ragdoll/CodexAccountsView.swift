@@ -1,30 +1,5 @@
 import SwiftUI
-
-struct CodexAccount: Decodable, Identifiable {
-    struct Window: Decodable {
-        let usedPercent: Double
-        let resetAt: Double?
-        var exhausted: Bool { usedPercent >= 100 && (resetAt ?? 0) > Date().timeIntervalSince1970 }
-    }
-    let id: String
-    let label: String
-    let email: String
-    let planType: String
-    let isCurrent: Bool
-    let fiveHour: Window?
-    let oneWeek: Window?
-    let fetchedAt: Double?
-    let usageError: String?
-    var displayName: String { email.isEmpty ? label : email }
-    var exhausted: Bool { fiveHour?.exhausted == true || oneWeek?.exhausted == true }
-    var state: String { usageError != nil ? "需处理" : exhausted ? "额度耗尽" : isCurrent ? "当前登录" : "可用" }
-}
-
-struct CodexAccountsResponse: Decodable {
-    let accounts: [CodexAccount]
-    let message: String?
-    let status: String?
-}
+import RagdollCore
 
 struct CodexAccountsView: View {
     @EnvironmentObject var model: AppModel
@@ -65,7 +40,8 @@ struct CodexAccountsView: View {
                         accountList
                         detail
                     }
-                    Text("账号来自本机 Codex Tools。切换更新本机登录，已打开的 Codex 或 CLI 进程需重新打开后使用新账号。激活会发送一次 hello 并消耗少量额度，已有活动窗口时跳过。").font(.caption).foregroundStyle(.secondary)
+                    Text("自动激活会在当前窗口刷新后发送一次 hello，消耗少量额度。保持 Ragdoll 运行，或启用独立后台服务以便退出后继续；休眠期间不发送，恢复后检查。推理失败或进程中断后暂停，检查结果后关闭再开启。").font(.caption).foregroundStyle(.secondary)
+                    Text("账号来自本机 Codex Tools。切换更新本机登录，已打开的 Codex 或 CLI 进程需重新打开后使用新账号。").font(.caption).foregroundStyle(.secondary)
                 }.padding(28)
             }
         }
@@ -103,6 +79,18 @@ struct CodexAccountsView: View {
                             Spacer()
                             Button("切换") { Task { await model.manageCodexAccounts("switch", id: account.id) } }.disabled(busy || account.isCurrent)
                             Button { Task { await model.manageCodexAccounts("warmup", id: account.id) } } label: { Label("激活 5h 窗口", systemImage: "flame") }.disabled(busy)
+                        }
+                        VStack(alignment: .leading, spacing: 7) {
+                            Toggle("窗口刷新后自动激活", isOn: Binding(
+                                get: { model.codexAutoStates[account.id]?.enabled == true },
+                                set: { model.setCodexAutoActivation(account.id, enabled: $0) }
+                            )).toggleStyle(.switch).controlSize(.small)
+                            if let state = model.codexAutoStates[account.id], state.enabled {
+                                Text(state.message).font(.caption).foregroundStyle(state.nextCheck == nil ? Color.orange : .secondary).textSelection(.enabled)
+                                if let next = state.nextCheck {
+                                    Text("下次检查：\(next.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
                 }.overlay(RoundedRectangle(cornerRadius: 16).stroke(selected?.id == account.id ? Color.accentColor : .clear, lineWidth: 1.5))

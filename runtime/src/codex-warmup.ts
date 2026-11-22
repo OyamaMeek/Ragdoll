@@ -98,7 +98,7 @@ export async function warmupCodex(home: string) {
   return warmupCodexAuth(auth);
 }
 
-export async function warmupCodexAuth(auth: unknown) {
+export async function warmupCodexAuth(auth: unknown, beforeSend?: () => Promise<void>) {
   if (warmingUp) throw new Error('正在激活 Codex 窗口，请等待当前请求结束');
   warmingUp = true;
   try {
@@ -124,6 +124,7 @@ export async function warmupCodexAuth(auth: unknown) {
       reasoning: { effort: 'none', summary: 'auto', context: 'all_turns' },
       text: { verbosity: 'low' }, parallel_tool_calls: false, tool_choice: 'auto',
     });
+    await beforeSend?.();
     try {
       await readWarmupCompletion(await officialRequest('codex/responses', {
         ...headers, Accept: 'text/event-stream', 'Content-Type': 'application/json',

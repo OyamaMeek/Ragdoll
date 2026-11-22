@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { object, string } from './types.ts';
 import { warmupCodexAuth } from './codex-warmup.ts';
 
@@ -65,12 +65,22 @@ async function runTools(args: string[]): Promise<unknown> {
   try { return JSON.parse(stdout); } catch { throw new Error('Codex Tools 未返回有效 JSON，请更新后重试'); }
 }
 
-export async function codexAccounts(action: string, id: string) {
+export async function checkAutomaticAttempt(root: string, id: string, attemptID: string) {
+  if (!isAbsolute(root) || !id || !attemptID) throw new Error('自动激活状态参数无效');
+  let states: unknown;
+  try { states = JSON.parse(await readFile(join(root, 'codex-auto-activation.json'), 'utf8')); }
+  catch { throw new Error('无法读取自动激活状态，未发送请求'); }
+  const state = object(object(states)[id]);
+  if (state.enabled !== true || state.attemptID !== attemptID) throw new Error('自动激活已关闭或本次授权已失效，未发送请求');
+}
+
+export async function codexAccounts(action: string, id: string, automatic?: { root: string; attemptID: string }) {
   if (!['list', 'refresh', 'switch', 'warmup'].includes(action)) throw new Error('不支持的 Codex 账号操作');
   if (['switch', 'warmup'].includes(action) && !id) throw new Error('请选择 Codex 账号');
   if (busy) throw new Error('正在处理 Codex 账号，请等待当前操作完成');
   busy = true;
   try {
+    if (automatic) await checkAutomaticAttempt(automatic.root, id, automatic.attemptID);
     if (action === 'list' || action === 'refresh') {
       return { accounts: parseCodexAccounts(await runTools(action === 'refresh' ? ['list', '--refresh'] : ['list'])) };
     }
@@ -91,7 +101,7 @@ export async function codexAccounts(action: string, id: string) {
     const selected = object(stored.find(value => object(value).id === id));
     const auth = object(selected.authJson);
     if (!selected.accountId || selected.accountId !== object(auth.tokens).account_id) throw new Error('所选账号的登录身份不一致，请在 Codex Tools 中重新登录');
-    const result = await warmupCodexAuth(auth);
+    const result = await warmupCodexAuth(auth, automatic ? () => checkAutomaticAttempt(automatic.root, id, automatic.attemptID) : undefined);
     try {
       await runTools(['usage', id]);
       return { ...result, accounts: parseCodexAccounts(await runTools(['list'])) };

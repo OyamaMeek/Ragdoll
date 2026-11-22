@@ -500,3 +500,19 @@
 - **Git 提交**：`38f1efb feat(codex): add multi-account sidebar management`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-22 10:40] 窗口刷新后自动激活 Codex
+
+- **需求/问题描述**：
+  > 参考激活 5h 功能，等待 5h 窗口刷新后自动发送消息。
+- **实际实现的功能与改动**：
+  - 各账号新增默认关闭的自动激活开关，持久保存等待时间和结果；按服务端 resetAt 加 30 秒缓冲刷新额度、按需发送固定 hello，不切换当前登录。
+  - GUI 和已有后台服务复用共享调度器及 ServiceLease，手动账号操作使用同一操作锁；发送前持久登记尝试，Node 在 HTTP 发送前再次核对开关和标记，用户后续开关操作不会被旧结果覆盖。
+  - 已确认窗口按实际重置时间等待；未确认请求至少等待 5h，推理失败或中断后暂停。免费查询失败延迟重查，已有活动窗口、5h/周额度耗尽时跳过；账号页手动结果更新自动等待状态。
+  - 共享账号摘要模型移入 RagdollCore；状态文件不含凭据或消息正文，不进入用量归档，不增加依赖或系统定时任务。退出后继续需启用独立后台服务，休眠恢复后检查。
+  - 回归先失败后通过；最终 TypeScript、允许的 Node 17 项和 Swift 套件 57 项通过，显式真实自动调度检查单独通过。两个真实账号仅登记未来窗口，重复检查和独立后台进程均未发送推理。
+  - 同证书签名打包、深度签名、包内自检、包内取消保护与独立后台等待登记通过，已正常启动新版应用。未实测跨越完整 5h、休眠恢复或视觉效果；未运行 Claude 测试，真实自动开关保持默认关闭。
+- **涉及文件**：`Sources/RagdollCore/CodexAccount.swift`、`Sources/RagdollCore/CodexAutoActivation.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/CodexAccountsView.swift`、`Tests/RagdollCoreTests/CodexAutoActivationTests.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/`、`runtime/test/`、`README.md`、`docs/` 和 `memory/`。
+- **Git 提交**：待提交。
+
+---

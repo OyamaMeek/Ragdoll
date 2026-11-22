@@ -31,12 +31,14 @@ final class AppModel: ObservableObject {
     @Published private(set) var codexAccountsBusy = false
     @Published private(set) var codexAccountsMessage: String?
     @Published private(set) var codexAccountsError: String?
+    @Published private(set) var codexAutoStates: [String: CodexAutoActivation.State] = [:]
     let bridge = RuntimeBridge()
     let root: URL
     private let store: Store?
     private var reloadTask: Task<Void, Never>?
     private var archiveTask: Task<Void, Never>?
     private var monitorTask: Task<Void, Never>?
+    private var autoActivationTask: Task<Void, Never>?
     private var dirtySince: Date?
     private var dirtyGeneration = 0
     private var initialized = false
@@ -51,8 +53,16 @@ final class AppModel: ObservableObject {
             let settings = try store.settings(), sessions = try store.list()
             self.store = store; self.settings = settings; self.sessions = sessions
         } catch { store = nil; self.error = error.localizedDescription }
+        do { codexAutoStates = try CodexAutoActivation.load(root: self.root) }
+        catch { codexAccountsError = error.localizedDescription }
+        autoActivationTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.checkCodexAutoActivation()
+                do { try await Task.sleep(for: .seconds(15)) } catch { return }
+            }
+        }
     }
-    deinit { monitorTask?.cancel(); archiveTask?.cancel(); reloadTask?.cancel() }
+    deinit { monitorTask?.cancel(); archiveTask?.cancel(); reloadTask?.cancel(); autoActivationTask?.cancel() }
     var needsArchiveSetup: Bool { settings.archivePath.isEmpty }
     var selected: Session? { sessions.first { $0.id == selectedID } }
     var filtered: [Session] { sessions.filter { session in
@@ -72,6 +82,8 @@ final class AppModel: ObservableObject {
         codexWarmupResults[home] = nil
         defer { warmingCodexHome = nil }
         do {
+            let lease = try ServiceLease(root: root, name: "codex-account-lock")
+            defer { withExtendedLifetime(lease) {} }
             let result = try await bridge.request("codex.warmup", ["home": .string(home)], timeout: 90)
             codexWarmupResults[home] = try result["message"].decode(String.self)
         } catch { codexWarmupResults[home] = error.localizedDescription }
@@ -84,6 +96,8 @@ final class AppModel: ObservableObject {
         let name = codexAccounts.first(where: { $0.id == id })?.displayName
         defer { codexAccountsBusy = false }
         do {
+            let lease = try ServiceLease(root: root, name: "codex-account-lock")
+            defer { withExtendedLifetime(lease) {} }
             try await bridge.start(dataDirectory: root)
             let value = try await bridge.request("codex.accounts", ["action": .string(action), "id": .string(id)], timeout: 360)
             let result = try value.decode(CodexAccountsResponse.self)
@@ -93,10 +107,43 @@ final class AppModel: ObservableObject {
                 if result.status == "attention" { codexAccountsError = text }
                 else { codexAccountsMessage = text }
             }
+            if action == "warmup" {
+                try CodexAutoActivation.noteManualResult(root: root, id: id, result: result)
+                codexAutoStates = try CodexAutoActivation.load(root: root)
+            }
+        } catch ServiceLeaseError.occupied {
+            codexAccountsError = "后台正在处理账号，请稍后重试"
         } catch {
             codexAccountsError = error.localizedDescription
+            if action == "warmup" {
+                do {
+                    try CodexAutoActivation.noteManualResult(root: root, id: id, result: nil)
+                    codexAutoStates = try CodexAutoActivation.load(root: root)
+                } catch { codexAccountsError = "无法保存自动激活状态：\(error.localizedDescription)" }
+            }
             if action == "switch" { codexAccounts = [] }
         }
+    }
+
+    func setCodexAutoActivation(_ id: String, enabled: Bool) {
+        guard codexAccounts.contains(where: { $0.id == id }) || codexAutoStates[id] != nil else { return }
+        do {
+            try CodexAutoActivation.configure(root: root, id: id, enabled: enabled)
+            codexAutoStates = try CodexAutoActivation.load(root: root)
+        } catch { codexAccountsError = error.localizedDescription }
+    }
+
+    func checkCodexAutoActivation() async {
+        do {
+            codexAutoStates = try CodexAutoActivation.load(root: root)
+            guard !codexAccountsBusy, warmingCodexHome == nil,
+                  codexAutoStates.values.contains(where: { $0.enabled && ($0.nextCheck.map { $0 <= Date() } ?? false) }) else { return }
+            codexAccountsBusy = true
+            defer { codexAccountsBusy = false }
+            try await bridge.start(dataDirectory: root)
+            if let accounts = try await CodexAutoActivation.runDue(root: root, bridge: bridge) { codexAccounts = accounts }
+            codexAutoStates = try CodexAutoActivation.load(root: root)
+        } catch { codexAccountsError = error.localizedDescription }
     }
 
     func launch() async {

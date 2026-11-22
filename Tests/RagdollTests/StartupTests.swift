@@ -3,6 +3,20 @@ import Testing
 import RagdollCore
 @testable import Ragdoll
 
+@Test @MainActor func codexAutoActivationTogglePersistsWithoutChangingSessionsOrStartingInference() throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try CodexAutoActivation.configure(root: root, id: "a", enabled: false)
+    let model = AppModel(root: root)
+    model.setCodexAutoActivation("a", enabled: true)
+    #expect(try CodexAutoActivation.load(root: root)["a"]?.enabled == true)
+    #expect(model.codexAutoStates["a"]?.lastAttempt == nil)
+    model.setCodexAutoActivation("a", enabled: false)
+    #expect(model.codexAutoStates["a"]?.nextCheck == nil)
+    #expect(model.sessions.isEmpty)
+    #expect(model.settings.locations.isEmpty)
+}
+
 @Test(.enabled(if: ProcessInfo.processInfo.environment["RAGDOLL_CODEX_ACCOUNTS_LIVE"] == "1"))
 @MainActor func realCodexAccountsLoadThroughTheAppModelWithoutChangingUsage() async throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")

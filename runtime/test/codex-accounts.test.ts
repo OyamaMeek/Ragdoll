@@ -1,6 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { codexAccounts, parseCodexAccounts, parseCodexSwitchResult } from '../src/codex-accounts.ts';
+import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { codexAccounts, parseCodexAccounts, parseCodexSwitchResult, checkAutomaticAttempt } from '../src/codex-accounts.ts';
+
+test('automatic Codex activation rechecks persisted consent and rejects canceled or stale attempts', async t => {
+  const base = join(import.meta.dirname, '../../.cache');
+  await mkdir(base, { recursive: true });
+  const root = await mkdtemp(join(base, 'codex-auto-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, 'codex-auto-activation.json');
+  const persist = (enabled: boolean, attemptID: string) => writeFile(path, JSON.stringify({ a: { enabled, attemptID } }));
+  await persist(true, 'current');
+  await checkAutomaticAttempt(root, 'a', 'current');
+  await assert.rejects(checkAutomaticAttempt(root, 'a', 'old'), /关闭|失效/);
+  await persist(false, 'current');
+  await assert.rejects(checkAutomaticAttempt(root, 'a', 'current'), /关闭|失效/);
+  await writeFile(path, 'broken');
+  await assert.rejects(checkAutomaticAttempt(root, 'a', 'current'), /状态/);
+});
 
 test('Codex account summaries validate identities and quota while excluding credentials', () => {
   const input = [{ id: 'account-a', label: 'Work', email: 'work@example.com', planType: 'plus', sourceKind: 'chatgpt', isCurrent: true,
