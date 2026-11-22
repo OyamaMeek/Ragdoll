@@ -544,6 +544,6 @@
   - 同证书 release 打包、深度签名、包内自检与三项队列/取消/路由检查通过，包内 NDJSON 拒绝缺少授权的计划。已正常启动新版 Ragdoll（PID 37425），当前 ChatGPT 保持 PID 19563。
   - 未向真实会话发送任意测试消息，未实测跨越完整 5h 后的桌面队列消费和模型执行、休眠恢复或视觉效果，未运行 Claude 测试；依赖桌面端当前原生队列协议及唤醒深链接。
 - **涉及文件**：`Sources/Ragdoll/CodexMessageScheduleView.swift`、`Sources/Ragdoll/CodexAccountsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/RagdollCore/CodexScheduledMessage.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Tests/RagdollCoreTests/CodexScheduledMessageTests.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/codex-desktop.ts`、`runtime/src/codex-accounts.ts`、`runtime/src/main.ts`、`runtime/test/`、`docs/USAGE.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md` 和 `memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`57ade53 feat(codex): schedule one-time desktop session messages`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
