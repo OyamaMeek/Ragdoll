@@ -497,6 +497,6 @@
   - runtime 与 AppModel 回归先失败；最终 TypeScript、允许的 Node 16 项、Swift 套件 47 项及单独真实 AppModel 检查通过。隔离 HOME 的真实副本来回切换通过，真实 auth.json 未变化，副本已删除。
   - 同证书 release 构建、深度签名、包内自检与包内账号读取/刷新通过，已正常启动新版应用。未进行视觉验证、客户端重启后身份验证或 Claude 测试；真实旧库迁移检查跳过。
 - **涉及文件**：`Sources/Ragdoll/CodexAccountsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/RootView.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/codex-accounts.ts`、`runtime/src/codex-warmup.ts`、`runtime/src/main.ts`、`runtime/test/codex-accounts.test.ts`、`runtime/test/codex-warmup.test.ts`、`README.md`、`docs/` 和 `memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`38f1efb feat(codex): add multi-account sidebar management`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
