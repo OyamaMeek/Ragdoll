@@ -7,7 +7,7 @@
 - [x] runtime 与 AppModel 回归先因缺少实现失败，已完成固定官方接口、SSE 解析、窗口判定、超时、响应上限和错误脱敏。
 - [x] 接入设置页各 Codex 目录按钮与结果，阻止并发；真实账号返回 alreadyActive，未发送额外推理。TypeScript、允许的 Node 13 项、Swift 套件 45 项通过（13.515 秒；真实旧库检查跳过）。新窗口从未激活到激活尚未实测。
 - [x] 更新使用说明、第三方依赖及验证记录；与原包同证书签名打包和深度校验通过，包内 NDJSON 真实账号查询通过。新版正式应用已正常重启（PID 13775）。
-- [ ] 提交及普通推送。
+- [x] `8b82aae feat(codex): add manual five-hour window activation` 已普通推送至 `origin/main`；本条和开发记录由后续文档提交补记。
 
 ## 仅保留会话 Token 用量（2026-11-20）
 

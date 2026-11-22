@@ -482,6 +482,6 @@
   - 真实账号及包内 NDJSON 调用均返回 alreadyActive，未发送额外推理；同证书 release 构建、深度签名、包内自检和许可检查通过，已正常重启正式应用。
   - 当前账号窗口已经活动，尚未实测从未激活到激活；未进行截图或窗口交互验证。过期凭据需要通过 Codex 重新登录，上游私有接口及模型变化可能影响功能。
 - **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/codex-warmup.ts`、`runtime/src/main.ts`、`runtime/test/codex-warmup.test.ts`、`runtime/package.json`、`runtime/package-lock.json`、`docs/USAGE.md`、`docs/THIRD_PARTY.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md` 和 `memory/`。
-- **Git 提交**：待提交。
+- **Git 提交**：`8b82aae feat(codex): add manual five-hour window activation`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
