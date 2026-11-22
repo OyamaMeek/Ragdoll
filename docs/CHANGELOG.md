@@ -547,3 +547,16 @@
 - **Git 提交**：`57ade53 feat(codex): schedule one-time desktop session messages`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-22 12:26] 消息计划优先显示最近项目
+
+- **需求/问题描述**：
+  > 在定时消息的项目选择列表中优先选择最近使用的项目。
+- **实际实现的功能与改动**：
+  - 项目列表复用候选会话的更新时间倒序，按首次出现顺序去重；最近使用的项目排在前面，会话更新后随重载调整。保留当前项目选择和已保存计划。
+  - 使用真实 Store 与 AppModel 的回归先缺少属性失败后通过，覆盖最近项目优先、重复项目去重和更新后重排。Swift 全套报告 65 项通过（14.873 秒，4 项条件检查跳过）；未新增截图或运行 Claude 测试。
+  - 同证书 release、深度签名和包内自检通过，已正常启动新版 Ragdoll（PID 39325），ChatGPT 保持原 PID 19563。
+- **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/CodexMessageScheduleView.swift`、`Tests/RagdollTests/StartupTests.swift`、`docs/USAGE.md`、`docs/CHANGELOG.md` 和 `memory/`。
+- **Git 提交**：待提交。
+
+---

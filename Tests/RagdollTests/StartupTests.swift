@@ -3,6 +3,23 @@ import Testing
 import RagdollCore
 @testable import Ragdoll
 
+@Test @MainActor func scheduledCodexProjectsFollowTheirMostRecentlyUpdatedSession() throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
+    var old = Session(id: "codex:old", nativeID: UUID().uuidString, source: "codex", title: "较早会话", project: "/a-old", home: CodexScheduledMessage.desktopHome.path, created: 1, updated: 100)
+    let recent = Session(id: "codex:recent", nativeID: UUID().uuidString, source: "codex", title: "最近会话", project: "/z-recent", home: CodexScheduledMessage.desktopHome.path, created: 1, updated: 300)
+    let duplicate = Session(id: "codex:duplicate", nativeID: UUID().uuidString, source: "codex", title: "同项目会话", project: "/a-old", home: CodexScheduledMessage.desktopHome.path, created: 1, updated: 200)
+    for session in [old, recent, duplicate] { _ = try store.save(session) }
+    let model = AppModel(root: root)
+    #expect(model.codexMessageProjects == ["/z-recent", "/a-old"])
+    old.updated = 400
+    _ = try store.save(old)
+    try model.reload()
+    #expect(model.codexMessageProjects == ["/a-old", "/z-recent"])
+}
+
 @Test @MainActor func scheduledCodexMessageLoadsCancelsAndKeepsSessionChoicesIndependentOfSearch() throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }

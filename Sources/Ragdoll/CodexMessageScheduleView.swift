@@ -11,7 +11,7 @@ struct CodexMessageScheduleView: View {
     private var state: CodexScheduledMessage.State? { model.codexMessageStates[account.id] }
     private var waiting: Bool { state?.enabled == true }
     private var sessions: [Session] { model.codexMessageSessions.filter { $0.project == project } }
-    private var projects: [String] { Array(Set(model.codexMessageSessions.map(\.project))).sorted() }
+    private var projects: [String] { model.codexMessageProjects }
     private var canSchedule: Bool {
         !model.codexAccountsBusy && model.warmingCodexHome == nil && account.isCurrent && account.usageError == nil &&
         (account.fiveHour?.resetAt ?? 0) > Date().timeIntervalSince1970 &&

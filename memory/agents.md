@@ -1,6 +1,6 @@
 # 开发环境
 
-- 当前任务（2026-11-22）：在 Codex 账号页选择项目与会话，自定义消息在下一次 5h 额度刷新后只发送一次，由桌面端原会话继续。使用桌面内置 Codex 0.171.0-alpha.13 的原生队列和唤醒深链接；单代理、Ponytail、TDD 与完成前验证。不截图、不运行 Claude 测试，不向真实会话发送任意测试消息。
+- 当前任务（2026-11-22）：一次性消息的项目选择列表优先显示最近使用的项目；复用 Store.list 按会话 updated 倒序的已有结果，保留首次出现的项目顺序。单代理、Ponytail、TDD 与完成前验证；不新增截图或运行 Claude 测试。
 
 - 当前代理：Codex；单代理执行，详见 `memory/progress.md`。
 - Swift 6.1、SwiftUI、macOS 15+、GRDB；TypeScript 助手使用 Node。

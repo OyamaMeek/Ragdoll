@@ -80,6 +80,11 @@ final class AppModel: ObservableObject {
     } }
     var dashboard: Dashboard { Analytics.summarize(filtered, prices: settings.prices, budget: settings.weeklyBudget) }
     var projects: [String] { Array(Set(sessions.map(\.project).filter { !$0.isEmpty })).sorted() }
+    var codexMessageProjects: [String] {
+        codexMessageSessions.reduce(into: []) { projects, session in
+            if !projects.contains(session.project) { projects.append(session.project) }
+        }
+    }
 
     func warmupCodex(_ home: String) async {
         guard ready, warmingCodexHome == nil, !codexAccountsBusy, settings.locations.contains(where: { $0.source == "codex" && $0.path == home }) else { return }
