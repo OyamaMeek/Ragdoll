@@ -3,6 +3,30 @@ import Testing
 import RagdollCore
 @testable import Ragdoll
 
+@Test @MainActor func scheduledCodexMessageLoadsCancelsAndKeepsSessionChoicesIndependentOfSearch() throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let store = try Store(path: root.appendingPathComponent("index.sqlite").path)
+    let session = Session(id: "codex:scheduled", nativeID: "019ab102-1234-7123-8123-123456789abc", source: "codex", title: "目标会话", project: "/project", home: CodexScheduledMessage.desktopHome.path)
+    _ = try store.save(session)
+    let reset = Date().addingTimeInterval(600).timeIntervalSince1970
+    let account = try JSONDecoder().decode(CodexAccount.self, from: JSONSerialization.data(withJSONObject: ["id": "a", "label": "A", "email": "", "planType": "plus", "isCurrent": true, "fiveHour": ["usedPercent": 20, "resetAt": reset]]))
+    try CodexScheduledMessage.configure(root: root, account: account, session: session, text: "继续原会话")
+    let model = AppModel(root: root)
+    #expect(model.codexMessageStates["a"]?.target.nativeID == session.nativeID)
+    model.query = "没有匹配的会话"
+    try model.reload()
+    #expect(model.sessions.isEmpty)
+    #expect(model.codexMessageSessions.map(\.id) == [session.id])
+    model.cancelCodexMessage("a")
+    #expect(model.codexMessageStates["a"]?.enabled == false)
+    #expect(try CodexScheduledMessage.load(root: root)["a"]?.enabled == false)
+    model.scheduleCodexMessage("missing", sessionID: session.id, text: "继续")
+    #expect(model.codexAccountsError != nil)
+    #expect(try CodexScheduledMessage.load(root: root).count == 1)
+}
+
 @Test @MainActor func codexAutoActivationTogglePersistsWithoutChangingSessionsOrStartingInference() throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }

@@ -105,6 +105,7 @@ public actor BackgroundWorker {
             do {
                 let settings = try store.settings()
                 if !once && settings.backgroundEnabled != true { break }
+                _ = try await CodexScheduledMessage.runDue(root: root, bridge: bridge)
                 _ = try await CodexAutoActivation.runDue(root: root, bridge: bridge)
                 guard !settings.archivePath.isEmpty else {
                     state.scan = "请先在 Ragdoll 中设置 Git 仓库"; try publish()

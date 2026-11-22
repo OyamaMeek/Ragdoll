@@ -69,7 +69,7 @@ test('live Codex accounts warm up independently without switching the active log
   assert.equal(before.length, 2);
   for (const account of before) {
     const result = await codexAccounts('warmup', account.id);
-    assert.ok('status' in result && ['activated', 'alreadyActive', 'exhausted', 'requestSent'].includes(result.status));
+    assert.ok('status' in result && typeof result.status === 'string' && ['activated', 'alreadyActive', 'exhausted', 'requestSent'].includes(result.status));
     assert.equal(result.accounts.find(account => account.isCurrent)?.id, current);
     console.log(JSON.stringify({ id: account.id, status: 'status' in result ? result.status : null, message: 'message' in result ? result.message : null }));
   }

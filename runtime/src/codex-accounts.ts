@@ -1,10 +1,11 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { object, string } from './types.ts';
 import { warmupCodexAuth } from './codex-warmup.ts';
+import { readScheduledMessage, queueDesktopMessage } from './codex-desktop.ts';
 
 const execute = promisify(execFile);
 const toolsPath = '/Applications/Codex Tools.app/Contents/MacOS/app';
@@ -75,12 +76,16 @@ export async function checkAutomaticAttempt(root: string, id: string, attemptID:
 }
 
 export async function codexAccounts(action: string, id: string, automatic?: { root: string; attemptID: string }) {
-  if (!['list', 'refresh', 'switch', 'warmup'].includes(action)) throw new Error('不支持的 Codex 账号操作');
-  if (['switch', 'warmup'].includes(action) && !id) throw new Error('请选择 Codex 账号');
+  if (!['list', 'refresh', 'switch', 'warmup', 'send'].includes(action)) throw new Error('不支持的 Codex 账号操作');
+  if (['switch', 'warmup', 'send'].includes(action) && !id) throw new Error('请选择 Codex 账号');
+  if (action === 'send' && !automatic) throw new Error('发送消息需要有效的定时消息计划');
   if (busy) throw new Error('正在处理 Codex 账号，请等待当前操作完成');
   busy = true;
   try {
-    if (automatic) await checkAutomaticAttempt(automatic.root, id, automatic.attemptID);
+    if (automatic) {
+      if (action === 'send') await readScheduledMessage(automatic.root, id, automatic.attemptID);
+      else await checkAutomaticAttempt(automatic.root, id, automatic.attemptID);
+    }
     if (action === 'list' || action === 'refresh') {
       return { accounts: parseCodexAccounts(await runTools(action === 'refresh' ? ['list', '--refresh'] : ['list'])) };
     }
@@ -93,6 +98,25 @@ export async function codexAccounts(action: string, id: string, automatic?: { ro
     const refreshed = parseCodexAccounts(await runTools(['usage', id]));
     const account = refreshed.find(account => account.id === id);
     if (!account || account.usageError) throw new Error('无法确认此账号的额度或登录，请在 Codex Tools 中刷新或重新登录');
+    if (action === 'send' && automatic) {
+      if (!account.isCurrent) throw new Error('本机当前登录已改变，请切换到计划账号后重新设置');
+      if (!account.fiveHour) throw new Error('无法确认此账号的 5h 额度，未发送消息');
+      if (account.fiveHour.usedPercent >= 100 || (account.oneWeek?.usedPercent ?? 0) >= 100) {
+        return { status: 'exhausted', message: '额度耗尽，等待服务端重置', accounts: refreshed };
+      }
+      const target = await readScheduledMessage(automatic.root, id, automatic.attemptID);
+      if (await realpath(target.home) !== await realpath(process.env.CODEX_HOME || join(homedir(), '.codex'))) throw new Error('所选会话不在桌面端当前数据目录中，未发送消息');
+      const queuedSubmissionID = await queueDesktopMessage(target, automatic.attemptID, async () => {
+        if (!parseCodexAccounts(await runTools(['list'])).some(account => account.id === id && account.isCurrent)) throw new Error('本机当前登录已改变，未发送消息');
+        await readScheduledMessage(automatic.root, id, automatic.attemptID);
+      });
+      try {
+        await execute('/usr/bin/open', ['-g', `codex://threads/wake/${target.nativeID}`], { timeout: 10000 });
+        return { status: 'queued', queuedSubmissionID, message: '消息已交给桌面端原会话，计划已完成；可在原会话查看排队和执行结果。', accounts: refreshed };
+      } catch {
+        return { status: 'queued', queuedSubmissionID, message: '消息已进入原会话队列，但无法唤醒桌面端；请手动打开原会话。计划已关闭，不会重复发送。', accounts: refreshed };
+      }
+    }
     let store: unknown;
     try { store = JSON.parse(await readFile(join(homedir(), 'Library/Application Support/com.carry.codex-tools/accounts.json'), 'utf8')); }
     catch { throw new Error('无法读取 Codex Tools 账号库，请更新并打开该应用检查'); }

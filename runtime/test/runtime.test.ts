@@ -27,12 +27,14 @@ test('runtime exposes usage scanning and rejects conversation methods without lo
     const value = object(JSON.parse(line));
     if (typeof value.id === 'number') responses.set(value.id, value);
     else events.push(value);
-    if (responses.size === 4) break;
+    if (value.id === 4) child.stdin.write(JSON.stringify({ id: 5, method: 'codex.sendScheduledMessage', params: { id: 'a', attemptID: 'canceled' } }) + '\n');
+    if (responses.size === 5) break;
   }
-  assert.equal(responses.size, 4);
+  assert.equal(responses.size, 5);
   assert.equal('agents' in object(responses.get(1)?.result), false);
   assert.equal(object(responses.get(2)?.result).count, 0);
   assert.deepEqual(events, []);
   assert.match(String(object(responses.get(3)?.error).message), /未知助手方法/);
   assert.match(String(object(responses.get(4)?.error).message), /自动激活状态/);
+  assert.match(String(object(responses.get(5)?.error).message), /定时消息计划/);
 });

@@ -531,3 +531,19 @@
 - **Git 提交**：`e94c8b7 fix(codex): reopen desktop after account switch`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-22 12:18] 额度刷新后向桌面端原会话发送一次消息
+
+- **需求/问题描述**：
+  > 在 Codex 账号页选择某项目的某个会话，输入自己的消息，只在下一次额度刷新后发送一次，由桌面端原会话继续执行。
+- **实际实现的功能与改动**：
+  - 各账号卡片新增项目、会话、多行消息与设置/取消入口；候选会话不受用量页搜索影响，计划显示目标、检查时间和最近结果。
+  - 前后台复用账号锁并持久记录单次计划，等待启用时的 5h 重置时间加 30 秒缓冲，刷新额度后发送。账号变化或不明结果暂停，额度耗尽等待恢复；发送前复核最新授权，确认入队后关闭计划。
+  - 使用桌面内置 Codex 的原生持久队列和指定会话唤醒深链接；辅助进程不恢复会话或运行模型步骤，不直接写桌面数据库。保留原会话模型、权限与原生队列处理，消息正文仅保存在私有本地计划中，不进入用量归档。
+  - 新回归先失败后通过；Swift 套件报告 64 项通过（15.627 秒，4 项条件检查跳过），TypeScript 和允许 Node 19 项通过（3 项真实推理/账号请求检查跳过）。隔离真实原生队列验证持久化、重连、取消、去重、原样消息和目标校验；只读真实桌面会话检查通过，登录未变化。
+  - 同证书 release 打包、深度签名、包内自检与三项队列/取消/路由检查通过，包内 NDJSON 拒绝缺少授权的计划。已正常启动新版 Ragdoll（PID 37425），当前 ChatGPT 保持 PID 19563。
+  - 未向真实会话发送任意测试消息，未实测跨越完整 5h 后的桌面队列消费和模型执行、休眠恢复或视觉效果，未运行 Claude 测试；依赖桌面端当前原生队列协议及唤醒深链接。
+- **涉及文件**：`Sources/Ragdoll/CodexMessageScheduleView.swift`、`Sources/Ragdoll/CodexAccountsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/RagdollCore/CodexScheduledMessage.swift`、`Sources/RagdollCore/BackgroundService.swift`、`Tests/RagdollCoreTests/CodexScheduledMessageTests.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/codex-desktop.ts`、`runtime/src/codex-accounts.ts`、`runtime/src/main.ts`、`runtime/test/`、`docs/USAGE.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md` 和 `memory/`。
+- **Git 提交**：待提交。
+
+---

@@ -33,11 +33,11 @@ async function handle(method: string, params: Data): Promise<unknown> {
   if (method === 'initialize') return { version: '0.1.0', locations: defaultLocations() };
   if (method === 'codex.warmup') return warmupCodex(string(params.home));
   if (method === 'codex.accounts') return codexAccounts(string(params.action), string(params.id));
-  if (method === 'codex.autoWarmup') {
+  if (method === 'codex.autoWarmup' || method === 'codex.sendScheduledMessage') {
     const index = process.argv.indexOf('--data-dir');
     const root = index >= 0 ? process.argv[index + 1] : undefined;
     if (!root || !isAbsolute(root)) throw new Error('自动激活缺少有效的数据目录');
-    return codexAccounts('warmup', string(params.id), { root, attemptID: string(params.attemptID) });
+    return codexAccounts(method === 'codex.autoWarmup' ? 'warmup' : 'send', string(params.id), { root, attemptID: string(params.attemptID) });
   }
   if (method === 'scan') {
     if (scanActive) throw new Error('正在扫描，请稍后重试');

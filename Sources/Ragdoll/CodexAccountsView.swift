@@ -92,6 +92,8 @@ struct CodexAccountsView: View {
                                 }
                             }
                         }
+                        Divider()
+                        CodexMessageScheduleView(account: account)
                     }
                 }.overlay(RoundedRectangle(cornerRadius: 16).stroke(selected?.id == account.id ? Color.accentColor : .clear, lineWidth: 1.5))
             }

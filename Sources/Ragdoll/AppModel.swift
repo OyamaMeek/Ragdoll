@@ -32,6 +32,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var codexAccountsMessage: String?
     @Published private(set) var codexAccountsError: String?
     @Published private(set) var codexAutoStates: [String: CodexAutoActivation.State] = [:]
+    @Published private(set) var codexMessageStates: [String: CodexScheduledMessage.State] = [:]
+    @Published private(set) var codexMessageSessions: [Session] = []
     let bridge = RuntimeBridge()
     let root: URL
     private let store: Store?
@@ -52,8 +54,11 @@ final class AppModel: ObservableObject {
             let store = try Store(path: self.root.appendingPathComponent("index.sqlite").path)
             let settings = try store.settings(), sessions = try store.list()
             self.store = store; self.settings = settings; self.sessions = sessions
+            codexMessageSessions = CodexScheduledMessage.eligibleSessions(sessions)
         } catch { store = nil; self.error = error.localizedDescription }
         do { codexAutoStates = try CodexAutoActivation.load(root: self.root) }
+        catch { codexAccountsError = error.localizedDescription }
+        do { codexMessageStates = try CodexScheduledMessage.load(root: self.root) }
         catch { codexAccountsError = error.localizedDescription }
         autoActivationTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -146,13 +151,36 @@ final class AppModel: ObservableObject {
     func checkCodexAutoActivation() async {
         do {
             codexAutoStates = try CodexAutoActivation.load(root: root)
+            codexMessageStates = try CodexScheduledMessage.load(root: root)
             guard !codexAccountsBusy, warmingCodexHome == nil,
-                  codexAutoStates.values.contains(where: { $0.enabled && ($0.nextCheck.map { $0 <= Date() } ?? false) }) else { return }
+                  codexAutoStates.values.contains(where: { $0.enabled && ($0.nextCheck.map { $0 <= Date() } ?? false) }) ||
+                  codexMessageStates.values.contains(where: { $0.enabled && ($0.nextCheck.map { $0 <= Date() } ?? false) }) else { return }
             codexAccountsBusy = true
             defer { codexAccountsBusy = false }
             try await bridge.start(dataDirectory: root)
+            if let accounts = try await CodexScheduledMessage.runDue(root: root, bridge: bridge) { codexAccounts = accounts }
             if let accounts = try await CodexAutoActivation.runDue(root: root, bridge: bridge) { codexAccounts = accounts }
             codexAutoStates = try CodexAutoActivation.load(root: root)
+            codexMessageStates = try CodexScheduledMessage.load(root: root)
+        } catch { codexAccountsError = error.localizedDescription }
+    }
+
+    func scheduleCodexMessage(_ id: String, sessionID: String, text: String) {
+        guard let account = codexAccounts.first(where: { $0.id == id }), let session = codexMessageSessions.first(where: { $0.id == sessionID }) else {
+            codexAccountsError = "请选择有效的账号、项目和 Codex 会话"; return
+        }
+        do {
+            try CodexScheduledMessage.configure(root: root, account: account, session: session, text: text)
+            codexMessageStates = try CodexScheduledMessage.load(root: root)
+            codexAccountsError = nil
+        } catch { codexAccountsError = error.localizedDescription }
+    }
+
+    func cancelCodexMessage(_ id: String) {
+        do {
+            try CodexScheduledMessage.cancel(root: root, id: id)
+            codexMessageStates = try CodexScheduledMessage.load(root: root)
+            codexAccountsError = nil
         } catch { codexAccountsError = error.localizedDescription }
     }
 
@@ -216,7 +244,10 @@ final class AppModel: ObservableObject {
         guard reloadTask == nil else { return }
         reloadTask = Task { try? await Task.sleep(for: .milliseconds(300)); do { try reload() } catch { self.error = error.localizedDescription }; reloadTask = nil }
     }
-    func reload() throws { sessions = try store?.list(query: query) ?? [] }
+    func reload() throws {
+        sessions = try store?.list(query: query) ?? []
+        codexMessageSessions = CodexScheduledMessage.eligibleSessions(try store?.list() ?? [])
+    }
     func select(_ id: String?) { selectedID = id }
     func saveSettings() throws { try store?.saveSettings(settings) }
     func persistSettings(refreshArchive: Bool = false) {
