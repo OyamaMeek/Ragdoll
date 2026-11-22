@@ -470,3 +470,18 @@
 - **Git 提交**：`e9760e6 refactor(usage): retain only per-session token data`，已普通推送至 `origin/main`。
 
 ---
+
+## [2026-11-22 09:55] 集成 Codex 5h 窗口手动激活
+
+- **需求/问题描述**：
+  > 研究 Codex Tools 的“激活 5h 窗口”，并集成到 Ragdoll。
+- **实际实现的功能与改动**：
+  - 设置的数据来源为每个 Codex 目录提供激活按钮，使用对应文件式 ChatGPT 登录；先查额度，再按需发送固定 hello，完成后重新查询。
+  - 区分已激活、已有活动窗口、额度耗尽和请求完成但尚未确认；加入并发保护、超时、响应上限、重定向拒绝和错误脱敏。不创建本地对话或持久保存凭据。
+  - 使用 eventsource-parser 解析 SSE；runtime 与 AppModel 回归先失败，随后 TypeScript、允许的 Node 13 项及 Swift 套件 45 项通过。真实旧库检查跳过，未运行 Claude 测试。
+  - 真实账号及包内 NDJSON 调用均返回 alreadyActive，未发送额外推理；同证书 release 构建、深度签名、包内自检和许可检查通过，已正常重启正式应用。
+  - 当前账号窗口已经活动，尚未实测从未激活到激活；未进行截图或窗口交互验证。过期凭据需要通过 Codex 重新登录，上游私有接口及模型变化可能影响功能。
+- **涉及文件**：`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/codex-warmup.ts`、`runtime/src/main.ts`、`runtime/test/codex-warmup.test.ts`、`runtime/package.json`、`runtime/package-lock.json`、`docs/USAGE.md`、`docs/THIRD_PARTY.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md` 和 `memory/`。
+- **Git 提交**：待提交。
+
+---

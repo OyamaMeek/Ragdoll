@@ -3,6 +3,7 @@ import { watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
 import { once } from 'node:events';
 import { scan, defaultLocations } from './logs.ts';
+import { warmupCodex } from './codex-warmup.ts';
 import { object, string } from './types.ts';
 import type { Data, Location } from './types.ts';
 
@@ -28,6 +29,7 @@ function watchLocations(locations: Location[]): void {
 
 async function handle(method: string, params: Data): Promise<unknown> {
   if (method === 'initialize') return { version: '0.1.0', locations: defaultLocations() };
+  if (method === 'codex.warmup') return warmupCodex(string(params.home));
   if (method === 'scan') {
     if (scanActive) throw new Error('正在扫描，请稍后重试');
     const locations = params.locations === undefined ? defaultLocations() : params.locations;

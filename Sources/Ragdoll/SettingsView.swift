@@ -42,12 +42,23 @@ struct SettingsView: View {
                     Text("本地会话目录").font(.headline)
                     Text("首次读取历史用量，之后自动扫描变化。仅保存会话信息和 Token 明细；源日志保持只读。").font(.callout).foregroundStyle(.secondary)
                     ForEach(Array(model.settings.locations.enumerated()), id: \.offset) { i, location in
-                        HStack {
-                            Text(sourceName(location.source)).frame(width: 140, alignment: .leading)
-                            TextField("目录", text: Binding(get: { model.settings.locations[i].path }, set: { model.settings.locations[i].path = $0 })).textFieldStyle(.roundedBorder)
-                            Button("选择…") { if let path = model.chooseProject() { model.settings.locations[i].path = path } }
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(sourceName(location.source)).frame(width: 140, alignment: .leading)
+                                TextField("目录", text: Binding(get: { model.settings.locations[i].path }, set: { model.settings.locations[i].path = $0 })).textFieldStyle(.roundedBorder).disabled(model.warmingCodexHome != nil)
+                                Button("选择…") { if let path = model.chooseProject() { model.settings.locations[i].path = path } }.disabled(model.warmingCodexHome != nil)
+                                if location.source == "codex" {
+                                    Button { Task { await model.warmupCodex(location.path) } } label: {
+                                        Label(model.warmingCodexHome == location.path ? "正在激活…" : "激活 5h 窗口", systemImage: "flame")
+                                    }.disabled(!model.ready || model.warmingCodexHome != nil || location.path.isEmpty)
+                                }
+                            }
+                            if location.source == "codex", let result = model.codexWarmupResults[location.path] {
+                                Text(result).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                            }
                         }
                     }
+                    Text("激活使用对应 Codex 目录的 ChatGPT 登录，发送一次 hello，会消耗少量额度。已激活或额度耗尽时跳过；不会重置已有窗口，结果以服务端为准。").font(.caption).foregroundStyle(.secondary)
                     HStack { Spacer(); Button("保存并扫描") { model.persistSettings(); Task { await model.refresh() } }.buttonStyle(.borderedProminent).disabled(model.scanning) }
                 }
             }

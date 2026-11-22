@@ -3,6 +3,24 @@ import Testing
 import RagdollCore
 @testable import Ragdoll
 
+@Test @MainActor func codexWarmupUsesRuntimeAndReleasesBusyStateAfterFailure() async throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let model = AppModel(root: root)
+    let home = root.appendingPathComponent("missing-codex").path
+    model.settings.locations = [Location(source: "codex", path: home)]
+    await model.warmupCodex(home)
+    #expect(model.codexWarmupResults.isEmpty)
+    try await model.bridge.start(dataDirectory: root)
+    model.ready = true
+    await model.warmupCodex(home)
+    #expect(model.warmingCodexHome == nil)
+    #expect(model.codexWarmupResults[home]?.contains("登录") == true)
+    #expect(!FileManager.default.fileExists(atPath: home))
+    #expect(model.sessions.isEmpty)
+    await model.bridge.close()
+}
+
 @Test @MainActor func configuredRepositoryShowsCachedInterfaceDuringLoadingAndAfterFailure() async throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

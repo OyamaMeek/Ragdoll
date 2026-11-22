@@ -25,6 +25,8 @@ final class AppModel: ObservableObject {
     @Published var lastArchive: Date?
     @Published var backgroundStatus = "未启用后台服务"
     @Published var syncStatus = "未启用远端推送"
+    @Published private(set) var warmingCodexHome: String?
+    @Published private(set) var codexWarmupResults: [String: String] = [:]
     let bridge = RuntimeBridge()
     let root: URL
     private let store: Store?
@@ -59,6 +61,17 @@ final class AppModel: ObservableObject {
     } }
     var dashboard: Dashboard { Analytics.summarize(filtered, prices: settings.prices, budget: settings.weeklyBudget) }
     var projects: [String] { Array(Set(sessions.map(\.project).filter { !$0.isEmpty })).sorted() }
+
+    func warmupCodex(_ home: String) async {
+        guard ready, warmingCodexHome == nil, settings.locations.contains(where: { $0.source == "codex" && $0.path == home }) else { return }
+        warmingCodexHome = home
+        codexWarmupResults[home] = nil
+        defer { warmingCodexHome = nil }
+        do {
+            let result = try await bridge.request("codex.warmup", ["home": .string(home)], timeout: 90)
+            codexWarmupResults[home] = try result["message"].decode(String.self)
+        } catch { codexWarmupResults[home] = error.localizedDescription }
+    }
 
     func launch() async {
         guard !initialized, let store else { return }
