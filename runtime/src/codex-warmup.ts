@@ -44,7 +44,8 @@ async function* responseChunks(response: Response) {
 }
 
 export async function readWarmupCompletion(response: Response): Promise<void> {
-  if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+  const contentType = response.headers.get('content-type');
+  if (contentType && !contentType.includes('text/event-stream')) {
     await response.body?.cancel();
     throw new Error('Codex 未返回 SSE 推理响应');
   }
@@ -91,12 +92,16 @@ async function readQuota(headers: Record<string, string>) {
 
 export async function warmupCodex(home: string) {
   if (!home || !isAbsolute(home)) throw new Error('请选择有效的 Codex 绝对目录');
+  let auth: unknown;
+  try { auth = JSON.parse(await readFile(join(home, 'auth.json'), 'utf8')); }
+  catch { throw new Error('无法读取 Codex 登录信息，请在该目录对应的 Codex 中重新登录'); }
+  return warmupCodexAuth(auth);
+}
+
+export async function warmupCodexAuth(auth: unknown) {
   if (warmingUp) throw new Error('正在激活 Codex 窗口，请等待当前请求结束');
   warmingUp = true;
   try {
-    let auth: unknown;
-    try { auth = JSON.parse(await readFile(join(home, 'auth.json'), 'utf8')); }
-    catch { throw new Error('无法读取 Codex 登录信息，请在该目录对应的 Codex 中重新登录'); }
     const tokens = object(object(auth).tokens);
     const accessToken = string(tokens.access_token), accountID = string(tokens.account_id);
     if (!accessToken || !accountID) throw new Error('此目录缺少 ChatGPT 登录凭据；API Key 账号不支持 5h 窗口，请通过 Codex 登录');

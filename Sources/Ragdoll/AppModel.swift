@@ -27,6 +27,10 @@ final class AppModel: ObservableObject {
     @Published var syncStatus = "未启用远端推送"
     @Published private(set) var warmingCodexHome: String?
     @Published private(set) var codexWarmupResults: [String: String] = [:]
+    @Published private(set) var codexAccounts: [CodexAccount] = []
+    @Published private(set) var codexAccountsBusy = false
+    @Published private(set) var codexAccountsMessage: String?
+    @Published private(set) var codexAccountsError: String?
     let bridge = RuntimeBridge()
     let root: URL
     private let store: Store?
@@ -63,7 +67,7 @@ final class AppModel: ObservableObject {
     var projects: [String] { Array(Set(sessions.map(\.project).filter { !$0.isEmpty })).sorted() }
 
     func warmupCodex(_ home: String) async {
-        guard ready, warmingCodexHome == nil, settings.locations.contains(where: { $0.source == "codex" && $0.path == home }) else { return }
+        guard ready, warmingCodexHome == nil, !codexAccountsBusy, settings.locations.contains(where: { $0.source == "codex" && $0.path == home }) else { return }
         warmingCodexHome = home
         codexWarmupResults[home] = nil
         defer { warmingCodexHome = nil }
@@ -71,6 +75,28 @@ final class AppModel: ObservableObject {
             let result = try await bridge.request("codex.warmup", ["home": .string(home)], timeout: 90)
             codexWarmupResults[home] = try result["message"].decode(String.self)
         } catch { codexWarmupResults[home] = error.localizedDescription }
+    }
+
+    func manageCodexAccounts(_ action: String, id: String = "") async {
+        guard !codexAccountsBusy, warmingCodexHome == nil else { return }
+        codexAccountsBusy = true
+        codexAccountsError = nil; codexAccountsMessage = nil
+        let name = codexAccounts.first(where: { $0.id == id })?.displayName
+        defer { codexAccountsBusy = false }
+        do {
+            try await bridge.start(dataDirectory: root)
+            let value = try await bridge.request("codex.accounts", ["action": .string(action), "id": .string(id)], timeout: 360)
+            let result = try value.decode(CodexAccountsResponse.self)
+            codexAccounts = result.accounts
+            if let message = result.message {
+                let text = name.map { "\($0)：\(message)" } ?? message
+                if result.status == "attention" { codexAccountsError = text }
+                else { codexAccountsMessage = text }
+            }
+        } catch {
+            codexAccountsError = error.localizedDescription
+            if action == "switch" { codexAccounts = [] }
+        }
     }
 
     func launch() async {

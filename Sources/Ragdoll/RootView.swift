@@ -2,10 +2,10 @@ import SwiftUI
 import RagdollCore
 
 enum Page: String, CaseIterable, Identifiable {
-    case home = "首页", sessions = "会话用量", settings = "设置"
+    case home = "首页", sessions = "会话用量", accounts = "Codex 账号", settings = "设置"
     var id: String { rawValue }
     var icon: String {
-        switch self { case .home: "square.grid.2x2"; case .sessions: "chart.bar.doc.horizontal"; case .settings: "slider.horizontal.3" }
+        switch self { case .home: "square.grid.2x2"; case .sessions: "chart.bar.doc.horizontal"; case .accounts: "person.2"; case .settings: "slider.horizontal.3" }
     }
 }
 
@@ -45,11 +45,13 @@ struct RootView: View {
                         switch page ?? .home {
                         case .home: DashboardView { page = .sessions }
                         case .sessions: SessionUsageView()
+                        case .accounts: CodexAccountsView()
                         case .settings: SettingsView()
                         }
                     }.toolbar {
                         ToolbarItem {
-                            if model.scanning { ProgressView().controlSize(.small) }
+                            if page == .accounts { EmptyView() }
+                            else if model.scanning { ProgressView().controlSize(.small) }
                             else { Button { Task { await model.refresh() } } label: { Image(systemName: "arrow.clockwise") }.help("刷新本地用量").disabled(!model.ready) }
                         }
                     }

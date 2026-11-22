@@ -3,6 +3,45 @@ import Testing
 import RagdollCore
 @testable import Ragdoll
 
+@Test(.enabled(if: ProcessInfo.processInfo.environment["RAGDOLL_CODEX_ACCOUNTS_LIVE"] == "1"))
+@MainActor func realCodexAccountsLoadThroughTheAppModelWithoutChangingUsage() async throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let model = AppModel(root: root)
+    await model.manageCodexAccounts("list")
+    #expect(model.codexAccountsError == nil)
+    #expect(model.codexAccounts.count == 2)
+    #expect(model.codexAccounts.filter(\.isCurrent).count == 1)
+    #expect(model.codexAccounts.allSatisfy { $0.fiveHour != nil && $0.oneWeek != nil })
+    #expect(!model.codexAccountsBusy)
+    #expect(model.sessions.isEmpty)
+    #expect(model.settings.locations.isEmpty)
+    await model.bridge.close()
+}
+
+@Test @MainActor func codexAccountPageAndActionsPreserveUsageAndReleaseBusyState() async throws {
+    let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    let model = AppModel(root: root)
+    #expect(Page.allCases.contains(.accounts))
+    await model.manageCodexAccounts("switch")
+    #expect(!model.codexAccountsBusy)
+    #expect(model.codexAccounts.isEmpty)
+    #expect(model.codexAccountsError?.contains("账号") == true)
+    #expect(model.sessions.isEmpty)
+    #expect(model.settings.locations.isEmpty)
+    await model.bridge.close()
+}
+
+@Test func codexAccountViewModelPreservesMissingQuotaAndCurrentIdentity() throws {
+    let data = Data(#"{"id":"a","label":"Work","email":"work@example.com","planType":"plus","isCurrent":true,"fiveHour":{"usedPercent":12,"resetAt":2000000000},"oneWeek":null,"fetchedAt":100,"usageError":null}"#.utf8)
+    let account = try JSONDecoder().decode(CodexAccount.self, from: data)
+    #expect(account.displayName == "work@example.com")
+    #expect(account.isCurrent)
+    #expect(account.fiveHour?.usedPercent == 12)
+    #expect(account.oneWeek == nil)
+}
+
 @Test @MainActor func codexWarmupUsesRuntimeAndReleasesBusyStateAfterFailure() async throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
     defer { try? FileManager.default.removeItem(at: root) }

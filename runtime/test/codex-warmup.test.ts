@@ -25,6 +25,7 @@ test('Codex warmup requires a complete structured SSE success across byte fragme
   } }), { headers: { 'content-type': 'text/event-stream' } });
   await readWarmupCompletion(response('event: response.completed\r\ndata: {"type":"response.completed",\r\ndata: "response":{"status":"completed"}}\r\n\r\n'));
   await readWarmupCompletion(response('data: {"type":"response.done","response":{"status":"completed"}}\n\n'));
+  await readWarmupCompletion(new Response(new TextEncoder().encode('data: {"type":"response.completed","response":{"status":"completed"}}\n\n')));
   for (const text of [
     'data: {"type":"response.output_text.delta","delta":"response.completed"}\n\n',
     'data: {"type":"response.completed","response":{"status":"failed"}}\n\n',

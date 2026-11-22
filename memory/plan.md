@@ -1,5 +1,14 @@
 # Ragdoll 实施计划
 
+## Codex 多账号页（2026-11-22）
+
+- 侧栏新增“Codex 账号”；原生 SwiftUI 显示邮箱、套餐、当前账号、5h/周额度和重置时间，选中账号展示详情，提供刷新、切换和单独激活。沿用现有 Card 和系统主题，不增加筛选、导出、重置卡或账号增删。
+- 已确认 Codex Tools 2.10.0 账号库内有用户截图中的两个 ChatGPT 账号。调用 `/Applications/Codex Tools.app/Contents/MacOS/app` 的 list/usage/switch CLI，复用凭据刷新和本机登录切换，不另建账号库，不把凭据传到 Swift、SQLite 或 Git。
+- 单独激活先通过 CLI 刷新指定账号，再从已存在的账号库读取该账号的 authJson，复用现有最小请求，激活后刷新该账号。激活不切换当前登录。共用激活流程保留原 home 入口、边界校验、超时与脱敏。
+- 切换由显式点击触发，更新本机登录文件；已打开的 Codex 或 CLI 进程需要重新打开后使用新账号。展示真实返回状态，不能因 CLI 退出码为零就忽略账号不匹配和历史同步警告。测试使用隔离 HOME 中的真实账号副本来回切换，核对真实 auth.json 不变，不终止当前工作进程。
+- 范围按 runtime 账号桥接及回归、Swift 模型/侧栏/账号视图及回归、文档/签名打包三段实施。无需数据库迁移、归档协议、fixtures、依赖和公开 SDK 改动。
+- 验证：新回归先失败；真实 CLI 读取两个账号、分别刷新与激活、隔离副本真实切换；允许的 Node、TypeScript、Swift、签名打包与包内 NDJSON。SSE 依据完整结构化事件确认成功，兼容缺少 Content-Type 的真实响应。无视觉授权，不截图。
+
 ## 手动激活 Codex 5h 窗口（2026-11-22）
 
 - 用户确认集成到 Ragdoll。在设置的数据来源中为每个 Codex home 提供按钮，复用 RuntimeBridge；AppModel 阻止并发操作并显示结果。

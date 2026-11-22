@@ -1,6 +1,6 @@
 # 开发环境
 
-- 当前任务（2026-11-22）：集成手动激活 Codex 5h 窗口；使用 Ponytail、Node test 与 Swift Testing，单代理执行，不截图、不运行 Claude 测试。参考 `references/codex-tools` 的预热流程。
+- 当前任务（2026-11-22）：新增侧栏 Codex 账号页，复用已安装 Codex Tools 的账号库、CLI 刷新与切换，分别激活两个账号；使用 Ponytail、Node test 与 Swift Testing，单代理执行，不截图、不运行 Claude 测试。
 
 - 当前代理：Codex；单代理执行，详见 `memory/progress.md`。
 - Swift 6.1、SwiftUI、macOS 15+、GRDB；TypeScript 助手使用 Node。

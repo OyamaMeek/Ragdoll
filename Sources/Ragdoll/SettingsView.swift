@@ -50,7 +50,7 @@ struct SettingsView: View {
                                 if location.source == "codex" {
                                     Button { Task { await model.warmupCodex(location.path) } } label: {
                                         Label(model.warmingCodexHome == location.path ? "正在激活…" : "激活 5h 窗口", systemImage: "flame")
-                                    }.disabled(!model.ready || model.warmingCodexHome != nil || location.path.isEmpty)
+                                    }.disabled(!model.ready || model.warmingCodexHome != nil || model.codexAccountsBusy || location.path.isEmpty)
                                 }
                             }
                             if location.source == "codex", let result = model.codexWarmupResults[location.path] {

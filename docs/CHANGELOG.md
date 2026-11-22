@@ -485,3 +485,18 @@
 - **Git 提交**：`8b82aae feat(codex): add manual five-hour window activation`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-22 10:15] 侧栏 Codex 多账号管理
+
+- **需求/问题描述**：
+  > 在侧栏提供独立入口，像参考图一样显示两个账号，支持切换并分别激活 5h 窗口。
+- **实际实现的功能与改动**：
+  - 新增原生“Codex 账号”页，显示邮箱、套餐、当前登录、5h/周额度、重置时间和选中账号详情，提供刷新、切换及各账号独立激活。
+  - 复用本机 Codex Tools 2.10.0 的账号库和 CLI，自动刷新对应登录；账号摘要采用字段白名单，凭据不进入 Swift、SQLite 或归档。切换更新本机登录文件，现有 Codex/CLI 进程需要重新打开。
+  - 两个真实账号的独立激活分别返回 requestSent 和 alreadyActive，当前登录保持不变；真实 hello 请求收到 completed，但新窗口尚未获额度查询确认。兼容缺少 Content-Type 的合法 SSE，保留失败、截断和响应上限保护。
+  - runtime 与 AppModel 回归先失败；最终 TypeScript、允许的 Node 16 项、Swift 套件 47 项及单独真实 AppModel 检查通过。隔离 HOME 的真实副本来回切换通过，真实 auth.json 未变化，副本已删除。
+  - 同证书 release 构建、深度签名、包内自检与包内账号读取/刷新通过，已正常启动新版应用。未进行视觉验证、客户端重启后身份验证或 Claude 测试；真实旧库迁移检查跳过。
+- **涉及文件**：`Sources/Ragdoll/CodexAccountsView.swift`、`Sources/Ragdoll/AppModel.swift`、`Sources/Ragdoll/RootView.swift`、`Sources/Ragdoll/SettingsView.swift`、`Tests/RagdollTests/StartupTests.swift`、`runtime/src/codex-accounts.ts`、`runtime/src/codex-warmup.ts`、`runtime/src/main.ts`、`runtime/test/codex-accounts.test.ts`、`runtime/test/codex-warmup.test.ts`、`README.md`、`docs/` 和 `memory/`。
+- **Git 提交**：待提交。
+
+---
