@@ -3,19 +3,20 @@ import { readdir, stat, realpath } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { createZstdDecompress, createGunzip } from 'node:zlib';
-import { createHash } from 'node:crypto';
-import { object, string, number, timestamp, content } from './types.ts';
+import { scanAntigravity } from './antigravity.ts';
+import { object, string, number, timestamp, content, sessionKey } from './types.ts';
 import type { Data, Location, Session, Usage } from './types.ts';
 
-const fingerprints = new Map<string, { file: string; nativeID: string; title: string | undefined }>();
+export { sessionKey };
 
-export const sessionKey = (source: string, id: string) => `${source}:${createHash('sha256').update(id).digest('hex').slice(0, 24)}`;
+const fingerprints = new Map<string, { file: string; nativeID: string; title: string | undefined }>();
 
 export function defaultLocations(): Location[] {
   return [
     { source: 'codex', path: process.env.CODEX_HOME || join(homedir(), '.codex') },
     { source: 'claude', path: process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude') },
     { source: 'dsh', path: process.env.DSH_HOME || join(homedir(), '.dsh') },
+    { source: 'antigravity', path: process.env.ANTIGRAVITY_HOME || join(homedir(), '.gemini') },
   ];
 }
 
@@ -179,6 +180,10 @@ async function walk(path: string): Promise<string[]> {
 export async function scan(locations: Location[], onSession?: (session: Session) => void | Promise<void>, onError?: (message: string) => void): Promise<Session[]> {
   const results: Session[] = [];
   for (const location of locations) {
+    if (location.source === 'antigravity') {
+      results.push(...await scanAntigravity(location.path, onSession, onError));
+      continue;
+    }
     let paths: string[];
     let titles = new Map<string, string>();
     try {

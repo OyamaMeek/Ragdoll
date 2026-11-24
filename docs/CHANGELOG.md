@@ -560,3 +560,32 @@
 - **Git 提交**：`611a724 fix(codex): prioritize recently used projects`，已普通推送至 `origin/main`；本条由后续文档提交补记。
 
 ---
+
+## [2026-11-24 22:04] 支持识别 Antigravity 会话
+
+- **需求/问题描述**：
+  > 再支持识别 Antigravity 的会话。
+
+- **实际实现的功能与改动**：
+  - 新增 `antigravity` 来源（显示名 `Antigravity`），默认扫描 `ANTIGRAVITY_HOME` 或 `~/.gemini` 下的 `antigravity`、`antigravity-insiders`、`antigravity-cli` 及直接指定的数据目录；解析 `conversations/<id>.db`、`conversation_summaries.db` 与 `transcript_full.jsonl`，提取会话标题、工作区目录、父会话 ID、模型标识（规范化 `gemini-*-[a-z]` 部署后缀）及输入/输出/缓存读取/缓存写入明细，按响应 ID 与步骤序号去重，输出不含正文与附件字段。
+  - 使用 Node 26 标准库 `node:sqlite` 只读访问数据库：无非空 `-wal` 时以 `immutable=1` 直接读取，不向源目录创建 `-shm` 或 `-wal`；存在非空 `-wal` 时复制到应用私有快照目录重放读取后立即删除，不读写 `/tmp`。过滤无本地会话文件的跨目录同步孤立摘要行。
+  - `Settings.applyDefaultLocations` 为空白配置或旧版默认三来源配置（`codex`、`claude`、`dsh`）自动补充 `antigravity` 并记录已知来源，保留单来源隔离测试与用户自定义配置；首页来源筛选、名称映射、用量备份与文档同步更新。
+  - Node 与 Swift 回归先在未实现时确认失败，实现后 TypeScript 严格检查通过，允许的 Node 测试 23 项通过（3 项跳过），Swift 全套测试报告 66 项通过（16.694 秒，4 项条件检查跳过）；本机 `~/.gemini` 只读扫描识别 2 个桌面端会话、过滤 `antigravity-cli` 跨目录孤立摘要，二次增量扫描产出 0 条。原证书 `CF68834CC55B59DD7A5E73B12EBD2B15F5A8FEAC` 签名打包、深度签名校验与包内 NDJSON 扫描通过；未运行 Claude 接入测试，未新增截图。
+
+- **涉及文件**：
+  - `runtime/src/antigravity.ts` (+693 / -0)
+  - `runtime/src/logs.ts` (+9 / -4)
+  - `runtime/src/main.ts` (+1 / -1)
+  - `runtime/src/types.ts` (+5 / -2)
+  - `runtime/test/antigravity.test.ts` (+311 / -0)
+  - `Sources/RagdollCore/Models.swift` (+18 / -0)
+  - `Sources/RagdollCore/BackgroundService.swift` (+11 / -7)
+  - `Sources/Ragdoll/AppModel.swift` (+1 / -1)
+  - `Sources/Ragdoll/RootView.swift` (+1 / -1)
+  - `Sources/Ragdoll/DashboardView.swift` (+1 / -1)
+  - `Tests/RagdollTests/StartupTests.swift` (+28 / -0)
+  - `README.md` (+2 / -1)、`docs/USAGE.md` (+1 / -1)、`docs/VALIDATION.md` (+8 / -0)、`docs/CHANGELOG.md`、`memory/`
+
+- **Git 提交**：待提交
+
+---

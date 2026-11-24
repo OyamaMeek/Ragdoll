@@ -1,5 +1,13 @@
 # Ragdoll 实施计划
 
+## 支持识别 Antigravity 会话（2026-11-24）
+
+- 新增 `antigravity` 来源（显示名 `Antigravity`），默认扫描目录为 `ANTIGRAVITY_HOME` 或 `~/.gemini`，自动发现其下 `antigravity`、`antigravity-insiders`、`antigravity-cli` 数据目录；用户或测试直接指定单个数据目录时同样按该数据目录作为 `session.home` 解析。不默认扫描 `magpie-agy-bridge` 内部桥接目录，避免与已计数的 Codex 会话重复统计。
+- 使用 Node 26 标准库 `node:sqlite` 只读读取会话数据库与 `conversation_summaries.db`：无非空 `-wal` 时使用 `immutable=1` 直接只读打开，不向源目录写入 `-shm`；存在非空 `-wal` 时将数据库与 `-wal` 复制到项目私有快照目录（`--data-dir` 或 `.cache/sqlite-snapshots`）重放读取并立即清理，保证源目录零写入且不触发监听死循环。
+- 解析 `conversations/<id>.db` 中 `steps.metadata` 的时间、输入/输出/缓存写入/缓存读取及响应 ID 去重，关联 `gen_metadata` 的模型标识并规范化单字母 Gemini 部署后缀（如 `gemini-3.8-flash-n` → `gemini-3.8-flash`）；同时兼容 `brain/<id>/.system_generated/logs/transcript_full.jsonl` 的步骤用量、`<USER_REQUEST>` 首次提问标题回退与步骤覆盖去重。仅收录当前数据目录存在实际会话文件（`.db` 或 `transcript_full.jsonl`）的记录，忽略跨目录同步的孤立摘要行。
+- 在 `Settings` 中补充默认来源升级逻辑：首次空白配置或旧版完整三来源配置（`codex`、`claude`、`dsh`）自动追加 `antigravity` 并记录已知来源集合，隔离单来源测试与用户自定义修改保持不变；首页来源筛选、名称映射、归档与文档同步支持。
+- 先编写 Node 与 Swift 失败回归，确认因缺少实现失败后再实现代码，完成 TypeScript、允许的 Node 测试、Swift 全套测试、本机真实 `~/.gemini` 只读验证、同证书签名打包及普通推送。
+
 ## 消息计划优先选择最近项目（2026-11-22）
 
 - 将 Codex 消息计划的项目列表按最近会话更新时间倒序显示。同项目只保留一项，已有选择和计划继续保留。

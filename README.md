@@ -25,7 +25,7 @@
 
 ---
 
-Ragdoll 是一款原生 SwiftUI macOS 应用，读取 Codex、Claude Code 和 DeepSeek Harness 的本地日志，保存每个会话的 Token 明细。按来源、项目或日期查看用量与估算成本，并将用量数据自动备份到你选择的 Git 仓库。
+Ragdoll 是一款原生 SwiftUI macOS 应用，读取 Codex、Claude Code、DeepSeek Harness 和 Antigravity 的本地日志与会话数据库，保存每个会话的 Token 明细。按来源、项目或日期查看用量与估算成本，并将用量数据自动备份到你选择的 Git 仓库。
 
 ## 功能
 
@@ -45,6 +45,7 @@ Ragdoll 是一款原生 SwiftUI macOS 应用，读取 Codex、Claude Code 和 De
 | Codex | 本地历史与归档会话，保留缓存明细及请求去重 |
 | DeepSeek Harness | 本地日志及压缩日志，选择最新版本并排除继承用量 |
 | Claude Code | 读取本地日志中的模型与用量，按请求去重 |
+| Antigravity | 读取桌面端、Insiders 与 CLI 的会话数据库和步骤日志，保留缓存明细并去重 |
 
 旧版本已索引的其他来源会话保留其用量；缺少用量的会话显示未知。
 

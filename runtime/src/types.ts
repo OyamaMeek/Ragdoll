@@ -1,4 +1,6 @@
-export type Source = 'codex' | 'claude' | 'dsh' | 'desktop' | 'acp';
+import { createHash } from 'node:crypto';
+
+export type Source = 'codex' | 'claude' | 'dsh' | 'antigravity' | 'desktop' | 'acp';
 export type Data = Record<string, unknown>;
 export interface Usage { id: string; time: number; model: string; input: number; output: number; cacheRead: number; cacheWrite: number }
 export interface Session {
@@ -7,7 +9,8 @@ export interface Session {
   usage: Usage[]; warnings: string[];
   nativeSource?: string;
 }
-export interface Location { source: 'codex' | 'claude' | 'dsh'; path: string }
+export interface Location { source: 'codex' | 'claude' | 'dsh' | 'antigravity'; path: string }
+export const sessionKey = (source: string, id: string) => `${source}:${createHash('sha256').update(id).digest('hex').slice(0, 24)}`;
 export const object = (value: unknown): Data => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Data : {};
 export const string = (value: unknown, fallback = ''): string => typeof value === 'string' ? value : fallback;
 export const number = (value: unknown): number => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;

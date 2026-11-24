@@ -10,7 +10,7 @@
 
 ## 会话用量
 
-应用自动读取 `CODEX_HOME`、`CLAUDE_CONFIG_DIR`、`DSH_HOME` 或各工具默认目录，可在设置中调整。
+应用自动读取 `CODEX_HOME`、`CLAUDE_CONFIG_DIR`、`DSH_HOME`、`ANTIGRAVITY_HOME` 或各工具默认目录（含 `~/.gemini` 下的 Antigravity 桌面端、Insiders 与 CLI），可在设置中调整。旧版本的默认三来源配置在启动时自动补充 Antigravity 目录。
 
 “会话用量”支持按名称、项目或会话 ID 搜索，按来源和项目筛选。点击会话查看总 Token、输入、输出、缓存读取、缓存写入，以及每条用量的模型和时间。缺少原始用量时显示未知。
 

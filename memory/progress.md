@@ -1,5 +1,12 @@
 # 实施进度
 
+## 支持识别 Antigravity 会话（2026-11-24）
+
+- [x] 读取 `runtime/`、`RagdollCore`、`Ragdoll`、`references/magpie` 及本机 `~/.gemini` 数据目录结构，确认 `conversations/<id>.db`、`conversation_summaries.db` 与 `transcript_full.jsonl` 格式及只读 WAL 读取边界。
+- [x] 编写 Node 与 Swift 回归测试，覆盖 SQLite WAL 只读解析、双源同步骤去重、摘要与标题回退、跨目录孤立摘要过滤、增量失效与旧版三来源配置自动升级，确认测试先失败。
+- [x] 实现 `runtime/src/antigravity.ts`、来源路由、`Settings` 默认来源升级与界面筛选展示，通过 TypeScript、允许的 Node 测试 23 项（3 项跳过）、Swift 全套 66 项（16.694 秒，4 项条件检查跳过）及本机 `~/.gemini` 只读验证（识别 2 个桌面端会话，过滤 `antigravity-cli` 跨目录摘要，二次增量扫描产出 0 条）。
+- [x] 更新文档与开发记录，使用原 Apple Development 证书 `CF68834CC55B59DD7A5E73B12EBD2B15F5A8FEAC` 构建 `dist/Ragdoll.app` 并完成深度签名校验与包内自检；待完成原子化提交与普通推送。
+
 ## 消息计划优先选择最近项目（2026-11-22）
 
 - [x] 确认项目选择器按路径字母排序，Store.list 与会话候选已有 updated DESC 顺序。

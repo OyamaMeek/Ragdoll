@@ -97,29 +97,33 @@ public actor BackgroundWorker {
         defer { withExtendedLifetime(lease) {} }
         await bridge.setHandler { [weak self] event, data in await self?.receive(event, data) }
         try await bridge.start(dataDirectory: root)
-        _ = try await bridge.request("initialize")
+        let initial = try await bridge.request("initialize")
+        let defaultLocations = (try? initial["locations"].decode([Location].self)) ?? []
         var lastScan = Date.distantPast, lastArchiveAttempt = Date.distantPast, lastRequest: Data?, lastPushRequest: Data?, lastSettings: Data?, lastVersion: Int?
         var loadedArchive: String?
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         repeat {
             do {
-                let settings = try store.settings()
-                if !once && settings.backgroundEnabled != true { break }
+                var storedSettings = try store.settings()
+                if !once && storedSettings.backgroundEnabled != true { break }
                 _ = try await CodexScheduledMessage.runDue(root: root, bridge: bridge)
                 _ = try await CodexAutoActivation.runDue(root: root, bridge: bridge)
-                guard !settings.archivePath.isEmpty else {
+                guard !storedSettings.archivePath.isEmpty else {
                     state.scan = "请先在 Ragdoll 中设置 Git 仓库"; try publish()
                     if once { break }
                     try await Task.sleep(for: .seconds(2)); continue
                 }
                 if let fatalFailure { throw NSError(domain: "Ragdoll.Service", code: 2, userInfo: [NSLocalizedDescriptionKey: fatalFailure]) }
-                if loadedArchive != settings.archivePath {
+                let archivePath = storedSettings.archivePath
+                if loadedArchive != archivePath {
                     state.scan = "正在读取 Git 仓库"; try publish()
                     let store = self.store
-                    let count = try await Task.detached(priority: .utility) { try Archive.restore(from: URL(fileURLWithPath: settings.archivePath), into: store) }.value
-                    loadedArchive = settings.archivePath
+                    let count = try await Task.detached(priority: .utility) { try Archive.restore(from: URL(fileURLWithPath: archivePath), into: store) }.value
+                    loadedArchive = archivePath
                     state.archive = "已读取 Git 仓库 · \(count) 个会话"
                 }
+                if storedSettings.applyDefaultLocations(defaultLocations) { try store.saveSettings(storedSettings) }
+                let settings = storedSettings
                 let settingsData = try encoder.encode(settings)
                 if settingsData != lastSettings { lastSettings = settingsData; needsScan = true; try markDirty() }
                 let version = try store.dataVersion()

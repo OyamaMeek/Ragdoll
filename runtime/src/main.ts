@@ -42,7 +42,7 @@ async function handle(method: string, params: Data): Promise<unknown> {
   if (method === 'scan') {
     if (scanActive) throw new Error('正在扫描，请稍后重试');
     const locations = params.locations === undefined ? defaultLocations() : params.locations;
-    if (!Array.isArray(locations) || locations.some(value => !['codex', 'claude', 'dsh'].includes(string(object(value).source)) || !string(object(value).path))) throw new Error('扫描目录配置无效');
+    if (!Array.isArray(locations) || locations.some(value => !['codex', 'claude', 'dsh', 'antigravity'].includes(string(object(value).source)) || !string(object(value).path))) throw new Error('扫描目录配置无效');
     scanActive = true;
     try {
       watchLocations(locations as Location[]);

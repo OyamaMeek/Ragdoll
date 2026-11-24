@@ -23,7 +23,7 @@ struct DashboardView: View {
                     Picker("项目", selection: $model.project) { Text("全部项目").tag(""); ForEach(model.projects, id: \.self) { Text(URL(fileURLWithPath: $0).lastPathComponent).tag($0) } }.frame(width: 160)
                     Picker("来源", selection: $model.source) {
                         Text("全部来源").tag("all")
-                        ForEach(["codex", "claude", "dsh", "desktop", "acp"], id: \.self) { Text(sourceName($0)).tag($0) }
+                        ForEach(["codex", "claude", "dsh", "antigravity", "desktop", "acp"], id: \.self) { Text(sourceName($0)).tag($0) }
                     }.frame(width: 180)
                 }
                 HStack(spacing: 14) {

@@ -202,7 +202,7 @@ final class AppModel: ObservableObject {
             let count = try await Task.detached(priority: .utility) { try Archive.restore(from: archive, into: store) }.value
             try reload(); archiveLoaded = true; archiveStatus = "已读取 Git 仓库 · \(count) 个会话"
             let initial = try await bridge.request("initialize")
-            if settings.locations.isEmpty { settings.locations = try initial["locations"].decode([Location].self) }
+            _ = settings.applyDefaultLocations(try initial["locations"].decode([Location].self))
             try saveSettings(); ready = true
             if settings.backgroundEnabled == true { await setBackground(true) }
             await refresh(); scheduleArchive()

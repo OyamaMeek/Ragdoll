@@ -69,7 +69,7 @@ struct Card<Content: View>: View {
 }
 
 func sourceName(_ source: String) -> String {
-    switch source { case "codex": "Codex"; case "claude": "Claude Code"; case "dsh": "DeepSeek Harness"; case "desktop": "历史聊天用量"; case "acp": "历史 ACP 用量"; default: source }
+    switch source { case "codex": "Codex"; case "claude": "Claude Code"; case "dsh": "DeepSeek Harness"; case "antigravity": "Antigravity"; case "desktop": "历史聊天用量"; case "acp": "历史 ACP 用量"; default: source }
 }
 
 func compact(_ value: Int) -> String { value.formatted(.number.notation(.compactName)) }

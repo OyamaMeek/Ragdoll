@@ -66,6 +66,7 @@ public struct ArchiveRemote: Codable, Sendable, Equatable {
 
 public struct Settings: Codable, Sendable {
     public var locations: [Location] = []
+    public var knownSources: [String]?
     public var archivePath = ""
     public var archiveRemote: ArchiveRemote?
     public var backgroundEnabled: Bool?
@@ -81,4 +82,21 @@ public struct Settings: Codable, Sendable {
         "claude-sonnet-5-5": Price(input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5, reference: "https://platform.claude.com/docs/en/about-claude/pricing")
     ]
     public init() {}
+
+    public mutating func applyDefaultLocations(_ defaults: [Location]) -> Bool {
+        if locations.isEmpty {
+            guard !defaults.isEmpty else { return false }
+            locations = defaults
+            knownSources = defaults.map(\.source)
+            return true
+        }
+        let currentSources = Set(locations.map(\.source))
+        guard currentSources == ["codex", "claude", "dsh"] else { return false }
+        let known = Set(knownSources ?? ["codex", "claude", "dsh"])
+        let missing = defaults.filter { !known.contains($0.source) && !currentSources.contains($0.source) }
+        guard !missing.isEmpty else { return false }
+        locations.append(contentsOf: missing)
+        knownSources = (knownSources ?? ["codex", "claude", "dsh"]) + missing.map(\.source)
+        return true
+    }
 }

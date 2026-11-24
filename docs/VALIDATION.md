@@ -1,5 +1,13 @@
 # 验证记录
 
+## 2026-11-24 支持识别 Antigravity 会话
+
+- 新增 `antigravity` 来源，扫描 `ANTIGRAVITY_HOME` 或 `~/.gemini` 下的 `antigravity`、`antigravity-insiders`、`antigravity-cli` 及直接指定的数据目录；解析 `conversations/<id>.db`、`conversation_summaries.db` 与 `brain/<id>/.system_generated/logs/transcript_full.jsonl`，提取会话名称、工作区目录、父会话 ID、模型与输入/输出/缓存读取/缓存写入明细，按响应 ID 与步骤序号去重，输出不含正文和附件引用。
+- 无非空 `-wal` 时通过 `immutable=1` 只读打开，只读目录（`0555`）下不创建 `-shm` 或 `-wal`；存在非空 `-wal` 时复制到应用私有快照目录重放读取后立即清理，不读写 `/tmp`。无本地会话文件的跨目录同步摘要行已忽略。
+- Node 回归与 Swift 默认来源升级回归先在未实现时确认失败，实现后全部通过：TypeScript 严格检查通过，允许的 Node 测试 23 项通过（3 项真实账号请求检查跳过），Swift 全套测试报告 66 项通过（16.694 秒，4 项条件检查跳过）。
+- 本机 `~/.gemini` 只读扫描识别到 2 个桌面端会话（共 134 条模型调用记录），过滤 `antigravity-cli` 中的跨目录孤立摘要且目录条目保持不变；紧接的二次增量扫描产出 0 条未变记录，扫描警告为 0。
+- 复用证书 `CF68834CC55B59DD7A5E73B12EBD2B15F5A8FEAC` 完成 release 打包、深度签名校验与包内 `usage-only` 自检。未运行 Claude 接入测试，未新增截图或窗口交互自动化验证。
+
 ## 2026-11-22 额度刷新后向桌面端原会话发送一次消息
 
 - 用户确认只在下一次 5h 刷新后发送一次，并由桌面端原会话继续。账号卡片已接入项目、会话、多行消息和设置/取消按钮；前后台共用持久状态与账号操作锁。当前登录改变时暂停，确认原生队列接收后关闭，不明结果暂停。

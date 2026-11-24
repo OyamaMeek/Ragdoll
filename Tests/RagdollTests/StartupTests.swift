@@ -58,6 +58,34 @@ import RagdollCore
     #expect(model.settings.locations.isEmpty)
 }
 
+@Test func antigravitySourceDisplayAndSettingsUpgradePreserveIsolatedLocations() {
+    #expect(sourceName("antigravity") == "Antigravity")
+    let defaults = [
+        Location(source: "codex", path: "/u/.codex"),
+        Location(source: "claude", path: "/u/.claude"),
+        Location(source: "dsh", path: "/u/.dsh"),
+        Location(source: "antigravity", path: "/u/.gemini")
+    ]
+    var empty = Settings()
+    let emptyChanged = empty.applyDefaultLocations(defaults)
+    #expect(emptyChanged)
+    #expect(empty.locations == defaults)
+
+    var legacy = Settings()
+    legacy.locations = Array(defaults.prefix(3))
+    let legacyChanged = legacy.applyDefaultLocations(defaults)
+    let legacyRepeated = legacy.applyDefaultLocations(defaults)
+    #expect(legacyChanged)
+    #expect(legacy.locations.map(\.source) == ["codex", "claude", "dsh", "antigravity"])
+    #expect(!legacyRepeated)
+
+    var isolated = Settings()
+    isolated.locations = [Location(source: "codex", path: "/isolated/codex")]
+    let isolatedChanged = isolated.applyDefaultLocations(defaults)
+    #expect(!isolatedChanged)
+    #expect(isolated.locations == [Location(source: "codex", path: "/isolated/codex")])
+}
+
 @Test(.enabled(if: ProcessInfo.processInfo.environment["RAGDOLL_CODEX_ACCOUNTS_LIVE"] == "1"))
 @MainActor func realCodexAccountsLoadThroughTheAppModelWithoutChangingUsage() async throws {
     let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".agent/tests/\(UUID().uuidString)")
