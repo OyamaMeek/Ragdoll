@@ -601,6 +601,6 @@
   - SQLite 主库使用标准 backup 建立恢复点，执行 secure_delete/VACUUM 后由 5,419,008 缩至 5,341,184 字节；1015 个会话和 1 条设置的全部行摘要不变，integrity_check 通过、空闲页为零。旧 `index.sqlite.before-usage` 1,106,419,712 字节经摘要核对后移出应用目录，空 conversations 目录已删除。
   - 最终 Git 恢复 bundle 1,989,846,363 字节包含全部 4 个旧引用并通过 verify，SQLite 当前库备份与旧恢复副本保存在已忽略的私有 `.agent/token-only-cleanup/`，未上传。未修改原始工具日志或应用源码行为，未运行 Claude 测试或截图。
 - **涉及文件**：归档仓库的 `sessions/`、`.ragdoll-manifest.json` 与 Git 历史，应用数据目录的 `index.sqlite`、旧迁移副本及空目录；本仓库的 `memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。恢复点、操作脚本和验证文件保存在已忽略目录，不提交会话数据。
-- **Git 提交**：归档 `33c05ae351ccad0215d578e5ee6cd83664824e77 chore(archive): retain only session token usage` 已推送；源码仓库记录待提交。
+- **Git 提交**：归档 `33c05ae351ccad0215d578e5ee6cd83664824e77 chore(archive): retain only session token usage` 已推送；源码记录 `0b1481ed258c01bdf8fe9b999517d33499a65297 docs(archive): record token-only storage cleanup` 已普通推送至 `origin/main`，本条由后续文档提交补记。
 
 ---

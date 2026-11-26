@@ -9,7 +9,7 @@
 - [x] 同步准备期间新增用量后共保留 1015 个会话，归档提交 `33c05ae chore(archive): retain only session token usage` 通过精确 SHA lease 更新 `origin/main`，本地目录已替换且旧备份分支/正文目录已移除，普通推送验证通过。
 - [x] SQLite 主库执行标准 backup、secure_delete/VACUUM，5,419,008 → 5,341,184 字节；1015 个会话和 1 条设置逐行摘要不变，完整性通过且空闲页为零。1,106,419,712 字节旧 `index.sqlite.before-usage` 经摘要核对后移至私有恢复目录，删除空 conversations 目录。
 - [x] 原进程 85818/85820 已恢复；实际自动归档提交 `780f944` 已普通推送。远端新克隆约 11 MB、Git 约 2.7 MB，完整历史检查和真实恢复 1015 个会话通过，四类 Token 汇总均未减少。
-- [ ] 更新开发记录并提交、推送本次记录。
+- [x] 开发记录与任务记录已提交为 `0b1481e docs(archive): record token-only storage cleanup` 并普通推送至源码 `origin/main`；本条与实际提交哈希由后续文档提交补记。
 
 ## 支持识别 Antigravity 会话（2026-11-24）
 
