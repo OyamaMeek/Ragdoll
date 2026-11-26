@@ -1,5 +1,17 @@
 # 验证标准
 
+## 会话归档只保留 Token 用量
+
+- 清理前记录 main 与远端 SHA，建立包含全部本地引用的 Git bundle 并执行 `git bundle verify`。
+- 清理副本中的全部用量 JSON 与清单摘要一致，旧 861 个会话均存在，输入、输出、缓存读取、缓存写入汇总不减少；文件 JSON 只含当前 Session 与 Usage schema 字段。
+- 主分支全部历史中无 `sessions/` 和 `.ragdoll-manifest.json`，无旧备份分支；执行 `git fsck --full`，验证实际归档恢复并检查压缩体积。
+- 替换前重新核对原库 SHA 与远端 SHA，使用精确 lease 防止覆盖并发远端修改；替换后核对远端 main、普通推送和后台恢复，不运行 Claude 测试、截图或视觉检查。
+- 已验证：清理检查先在真实旧副本上因非用量文件失败；过滤后文件/历史检查与 fsck 通过。最终在锁保护下同步至 1015 个会话及报告，文件字节完全一致；调用真实 `Archive.restore` 写入独立 SQLite，全部 Session 逐条相等。
+- 最终恢复点：`.agent/token-only-cleanup/archive-before-cleanup.bundle` 1,989,846,363 字节，`git bundle verify` 确认全部 4 个引用及完整历史，旧 main 为 `43399a331660bbe9ce7d0ad2c6586cd0c5a7f49f`。SQLite 当前库备份与旧迁移恢复副本保存在同一私有目录，未上传。
+- SQLite：只保留现有 sessions/settings schema，逐条验证 Session/Usage 字段白名单；使用标准 SQLite backup 保存主库，secure_delete/VACUUM 前后比较所有行摘要和 integrity_check。旧数据库恢复副本移出应用数据目录；设置、会话身份及四类 Token 不得改变。
+- 已执行：用户明确授权后，归档 `33c05ae` 通过精确 SHA lease 替换远端，普通推送通过。进程恢复后真实自动归档 `780f944` 已普通推送；从远端重新克隆约 11 MB，全部历史无旧路径、fsck 和 1015 个会话真实恢复通过，Token 汇总与清理前一致或增加。
+- SQLite 已执行：5,419,008 → 5,341,184 字节，1015 个 sessions 与 1 个 settings 的全部行摘要不变，integrity_check 为 ok，freelist_count 为 0；旧迁移副本 1,106,419,712 字节在复制摘要一致后移出应用目录。无源码行为修改，未运行 Claude 测试或截图。
+
 ## 支持识别 Antigravity 会话
 
 - 识别 `~/.gemini` 下 `antigravity`、`antigravity-insiders`、`antigravity-cli` 及直接指定数据目录中的会话，正确读取输入、输出、缓存读取、缓存写入、响应去重、模型标识（含 `gemini-*-[a-z]` 部署后缀规范化）、工作区路径、父会话 ID 与标题回退，输出不含正文与附件字段。

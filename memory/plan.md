@@ -1,5 +1,13 @@
 # Ragdoll 实施计划
 
+## 会话归档只保留 Token 用量（2026-11-26）
+
+- 用户要求清理 `Ragdoll_sync` 当前文件和旧历史中的非用量内容；保留会话元数据、Token 明细、用量清单与报告，不修改原始工具日志和应用源码行为。
+- 在源码仓库已忽略的 `.agent/token-only-cleanup/` 保存恢复 bundle、清理副本和验证记录。使用独立克隆过滤 `sessions/` 与 `.ragdoll-manifest.json`，不保留旧 `archive-before-publish` 分支。
+- 验证新旧用量 JSON 字节摘要一致、861 个旧会话用量无缺失、历史无旧路径、真实恢复与后续普通归档推送兼容；准备完成后短暂停止归档进程，在锁保护下更新当前本地目录并以指定旧 SHA 的 lease 更新远端 main。
+- 外部目录写入和 Git 历史改写遵守宿主权限检查；失败时保留原库和恢复点，不覆盖远端新增提交。
+- 用户已明确确认暂停归档、删除旧正文/图片/日志、改写历史及强制更新 main，并要求同时清理 SQLite。主库已是仅用量 schema；用 SQLite backup 建立恢复点后启用 secure_delete 并 VACUUM，验证全部会话和设置字节一致，将应用目录中的 `index.sqlite.before-usage` 移到独立恢复目录，保留原始工具日志。
+
 ## 支持识别 Antigravity 会话（2026-11-24）
 
 - 新增 `antigravity` 来源（显示名 `Antigravity`），默认扫描目录为 `ANTIGRAVITY_HOME` 或 `~/.gemini`，自动发现其下 `antigravity`、`antigravity-insiders`、`antigravity-cli` 数据目录；用户或测试直接指定单个数据目录时同样按该数据目录作为 `session.home` 解析。不默认扫描 `magpie-agy-bridge` 内部桥接目录，避免与已计数的 Codex 会话重复统计。

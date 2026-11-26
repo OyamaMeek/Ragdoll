@@ -589,3 +589,18 @@
 - **Git 提交**：待提交
 
 ---
+
+## [2026-11-26 11:39] 清理会话归档历史与 SQLite
+
+- **需求/问题描述**：
+  > 会话归档仓库只保留 Token 用量信息，删除其他内容和相关旧历史，同时清理 SQLite。
+- **实际实现的功能与改动**：
+  - 从当前版本和全部保留历史中移除 `sessions/` 与旧清单 `.ragdoll-manifest.json`，清除 `archive-before-publish` 引用；保留会话身份、来源、项目、时间、模型、Token 明细、当前清单及用量报告。用户明确授权后使用精确远端 SHA lease 更新 `origin/main` 并替换原本地目录。
+  - 最终同步至 1015 个用量会话，清理前后用量文件及报告逐字节一致，旧 861 个会话四类 Token 无减少。真实旧副本检查先失败，清理后的文件/schema/历史检查与 `git fsck --full` 通过；调用实际 `Archive.restore` 写入独立 SQLite 后逐条 Session 比较通过。
+  - 仓库从约 4.3 GB 缩至约 11 MB；恢复原进程后，实际自动归档提交 `780f944` 已普通推送。远端重新克隆约 11 MB、Git 约 2.7 MB，完整历史、1015 个会话恢复与 Token 汇总再次验证通过。
+  - SQLite 主库使用标准 backup 建立恢复点，执行 secure_delete/VACUUM 后由 5,419,008 缩至 5,341,184 字节；1015 个会话和 1 条设置的全部行摘要不变，integrity_check 通过、空闲页为零。旧 `index.sqlite.before-usage` 1,106,419,712 字节经摘要核对后移出应用目录，空 conversations 目录已删除。
+  - 最终 Git 恢复 bundle 1,989,846,363 字节包含全部 4 个旧引用并通过 verify，SQLite 当前库备份与旧恢复副本保存在已忽略的私有 `.agent/token-only-cleanup/`，未上传。未修改原始工具日志或应用源码行为，未运行 Claude 测试或截图。
+- **涉及文件**：归档仓库的 `sessions/`、`.ragdoll-manifest.json` 与 Git 历史，应用数据目录的 `index.sqlite`、旧迁移副本及空目录；本仓库的 `memory/agents.md`、`memory/plan.md`、`memory/progress.md`、`memory/verify.md`、`docs/CHANGELOG.md`。恢复点、操作脚本和验证文件保存在已忽略目录，不提交会话数据。
+- **Git 提交**：归档 `33c05ae351ccad0215d578e5ee6cd83664824e77 chore(archive): retain only session token usage` 已推送；源码仓库记录待提交。
+
+---

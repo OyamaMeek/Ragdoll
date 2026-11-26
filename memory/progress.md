@@ -1,5 +1,16 @@
 # 实施进度
 
+## 会话归档只保留 Token 用量（2026-11-26）
+
+- [x] 定位真实归档 `/Users/oyamahappa/Documents/GitHub/Ragdoll_sync`；总计约 4.3 GB，`.git` 约 2.2 GB，旧 `sessions/` 约 2.1 GB，`usage/` 约 8.4 MB。
+- [x] 确认旧 861 个会话均存在于当前 1014 个用量会话中，四类 Token 汇总无减少；远端有后台普通推送，本地 origin/main 引用陈旧，实际远端 SHA 与 main 一致。
+- [x] 生成独立清理副本：约 11 MB，Git pack 1.75 MiB；1014 个会话及报告逐字节一致，861 个旧会话用量无缺失，完整历史无旧路径，`git fsck --full` 通过。真实 `Archive.restore` 恢复到独立 SQLite 后逐条 Session 比较通过。
+- [x] 锁定归档并暂停进程后，保存最终恢复点 `.agent/token-only-cleanup/archive-before-cleanup.bundle`（1,989,846,363 字节、权限 0600），`git bundle verify` 确认全部 4 个引用与完整历史；旧 main 为 `43399a331660bbe9ce7d0ad2c6586cd0c5a7f49f`。
+- [x] 同步准备期间新增用量后共保留 1015 个会话，归档提交 `33c05ae chore(archive): retain only session token usage` 通过精确 SHA lease 更新 `origin/main`，本地目录已替换且旧备份分支/正文目录已移除，普通推送验证通过。
+- [x] SQLite 主库执行标准 backup、secure_delete/VACUUM，5,419,008 → 5,341,184 字节；1015 个会话和 1 条设置逐行摘要不变，完整性通过且空闲页为零。1,106,419,712 字节旧 `index.sqlite.before-usage` 经摘要核对后移至私有恢复目录，删除空 conversations 目录。
+- [x] 原进程 85818/85820 已恢复；实际自动归档提交 `780f944` 已普通推送。远端新克隆约 11 MB、Git 约 2.7 MB，完整历史检查和真实恢复 1015 个会话通过，四类 Token 汇总均未减少。
+- [ ] 更新开发记录并提交、推送本次记录。
+
 ## 支持识别 Antigravity 会话（2026-11-24）
 
 - [x] 读取 `runtime/`、`RagdollCore`、`Ragdoll`、`references/magpie` 及本机 `~/.gemini` 数据目录结构，确认 `conversations/<id>.db`、`conversation_summaries.db` 与 `transcript_full.jsonl` 格式及只读 WAL 读取边界。
