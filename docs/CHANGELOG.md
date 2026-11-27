@@ -632,6 +632,6 @@
   - 首页工具栏复用手动归档操作。配置远端时显示“提交并推送”，未配置时显示“提交用量”。设置页和文件菜单也提供该操作。
   - 三项前后台归档回归通过。原证书签名、深度校验和包内自检通过。重启后通过 macOS 无障碍属性确认工具栏按钮顺序，真实归档 HEAD 保持不变。
 - **涉及文件**：`Sources/Ragdoll/RootView.swift`、`README.md`、`docs/USAGE.md`、`docs/CHANGELOG.md`、`memory/`。
-- **Git 提交**：待提交
+- **Git 提交**：`b41890c1502de673ecfb8ce3aef88e1c593d4fd4 feat(archive): add publish button to home toolbar`，已推送源码 `origin/main`。
 
 ---
