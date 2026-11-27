@@ -63,7 +63,7 @@ private func legacyUsageRecord() throws -> Data {
     try Archive.prepare(root)
     try git(root, ["config", "user.name", "Usage"]); try git(root, ["config", "user.email", "usage@localhost"])
     let session = try JSONDecoder().decode(Session.self, from: legacyUsageRecord())
-    _ = try Archive.save([session], to: root)
+    _ = try Archive.save([session], to: root, commit: true)
     let paths = try git(root, ["ls-tree", "-r", "--name-only", "HEAD"])
     #expect(!paths.contains("transcript.md"))
     #expect(!paths.contains("events.json"))

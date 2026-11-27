@@ -8,7 +8,7 @@ import Testing
     try FileManager.default.createDirectory(at: local, withIntermediateDirectories: true)
     try git(root, ["init", "--bare", first.path]); try git(root, ["init", "--bare", second.path]); try git(local, ["init"])
     try git(local, ["config", "user.name", "Scope"]); try git(local, ["config", "user.email", "scope@localhost"])
-    _ = try Archive.save([Session(id: "one", source: "codex", title: "One")], to: local)
+    _ = try Archive.save([Session(id: "one", source: "codex", title: "One")], to: local, commit: true)
     try git(local, ["remote", "add", "origin", first.path])
     try git(local, ["config", "--add", "remote.origin.pushurl", first.path]); try git(local, ["config", "--add", "remote.origin.pushurl", second.path])
     #expect(throws: (any Error).self) { try ArchiveSync.preview(root: local, remote: "origin", branch: "archive") }
@@ -33,7 +33,7 @@ import Testing
     try FileManager.default.createDirectory(at: local, withIntermediateDirectories: true)
     try git(root, ["init", "--bare", remote.path]); try git(local, ["init"])
     try git(local, ["config", "user.name", "Timeout"]); try git(local, ["config", "user.email", "timeout@localhost"])
-    _ = try Archive.save([Session(id: "one", source: "codex", title: "One")], to: local)
+    _ = try Archive.save([Session(id: "one", source: "codex", title: "One")], to: local, commit: true)
     try git(local, ["remote", "add", "origin", remote.path])
     let hook = local.appendingPathComponent(".git/hooks/pre-push")
     try Data("#!/bin/sh\nsleep 10\n".utf8).write(to: hook)
@@ -50,7 +50,7 @@ import Testing
     try FileManager.default.createDirectory(at: local, withIntermediateDirectories: true)
     try git(local, ["init"]); try git(local, ["config", "user.name", "Test"]); try git(local, ["config", "user.email", "test@localhost"])
     let session = Session(id: "one", source: "codex", title: "One")
-    _ = try Archive.save([session], to: local)
+    _ = try Archive.save([session], to: local, commit: true)
     let head = try git(local, ["rev-parse", "HEAD"])
     try git(local, ["remote", "add", "origin", remote.path])
     #expect(throws: (any Error).self) { try ArchiveSync.push(root: local, remote: "origin", branch: "archive") }

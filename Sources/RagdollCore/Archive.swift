@@ -50,7 +50,7 @@ public enum Archive {
         return paths.count
     }
 
-    public static func save(_ sessions: [Session], to root: URL, sourceRoots: [String] = [], prices: [String: Price] = Settings().prices) throws -> ArchiveResult {
+    public static func save(_ sessions: [Session], to root: URL, sourceRoots: [String] = [], prices: [String: Price] = Settings().prices, commit: Bool = false) throws -> ArchiveResult {
         let root = root.standardizedFileURL.resolvingSymlinksInPath(), fm = FileManager.default
         try prepare(root, sourceRoots: sourceRoots)
         let lease = try ServiceLease(root: root, name: ".ragdoll-archive-lock")
@@ -79,7 +79,7 @@ public enum Archive {
         }
         let managed = Array(desired.keys) + [manifestURL.lastPathComponent, ArchiveActivity.manifestPath]
         let managedSet = Set(managed)
-        let staged = try gitData(root, ["diff", "--cached", "--no-renames", "--name-only", "-z"]).split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+        let staged = commit ? try gitData(root, ["diff", "--cached", "--no-renames", "--name-only", "-z"]).split(separator: 0).map { String(decoding: $0, as: UTF8.self) } : []
         for path in staged where managedSet.contains(path) {
             let data = try gitData(root, ["show", ":\(path)"])
             let expected = switch path {
@@ -107,6 +107,7 @@ public enum Archive {
             let data = try encoder.encode(values)
             if previous != data { try data.write(to: root.appendingPathComponent(path), options: .atomic); changed.append(path) }
         }
+        guard commit else { return ArchiveResult(files: changed.count, commit: nil) }
         let gitDirectory = try git(root, ["rev-parse", "--absolute-git-dir"])
         let pathspec = URL(fileURLWithPath: gitDirectory).appendingPathComponent("ragdoll-pathspec-\(UUID().uuidString)")
         try Data((managed.joined(separator: "\0") + "\0").utf8).write(to: pathspec)

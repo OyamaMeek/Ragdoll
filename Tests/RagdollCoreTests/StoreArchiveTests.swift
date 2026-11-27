@@ -59,17 +59,37 @@ func testDirectory() throws -> URL {
     }
 }
 
+@Test func archiveAutomaticSavesLeaveHeadAndIndexUntouched() throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    try Archive.prepare(root)
+    try git(root, ["config", "user.name", "Manual"]); try git(root, ["config", "user.email", "manual@localhost"])
+    try Data("outside".utf8).write(to: root.appendingPathComponent("unrelated.txt"))
+    try git(root, ["add", "unrelated.txt"])
+    var session = Session(id: "automatic", source: "codex", title: "First")
+    #expect(try Archive.save([session], to: root).commit == nil)
+    #expect(throws: (any Error).self) { try git(root, ["rev-parse", "--verify", "HEAD"]) }
+    #expect(try git(root, ["diff", "--cached", "--name-only"]) == "unrelated.txt")
+    session.title = "Latest"; session.updated = 2
+    #expect(try Archive.save([session], to: root).files > 0)
+    #expect(try Archive.save([session], to: root).files == 0)
+    #expect(try git(root, ["diff", "--cached", "--name-only"]) == "unrelated.txt")
+    let store = try Store(path: root.appendingPathComponent("restored.sqlite").path)
+    #expect(try Archive.restore(from: root, into: store) == 1)
+    #expect(try store.session("automatic")?.title == "Latest")
+    #expect(throws: (any Error).self) { try git(root, ["rev-parse", "--verify", "HEAD"]) }
+}
+
 @Test func archiveCommitsOnlyManagedChangesAndProtectsEdits() throws {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     try Data("outside".utf8).write(to: root.appendingPathComponent("unrelated.txt"))
     try git(root, ["add", "unrelated.txt"])
     let session = Session(id: "codex:one", source: "codex", title: "Hello")
-    let first = try Archive.save([session], to: root)
+    let first = try Archive.save([session], to: root, commit: true)
     #expect(first.commit != nil)
     #expect(try !git(root, ["ls-tree", "--name-only", "HEAD"]).contains("unrelated.txt"))
     #expect(try git(root, ["diff", "--cached", "--name-only"]) == "unrelated.txt")
-    #expect(try Archive.save([session], to: root).commit == nil)
+    #expect(try Archive.save([session], to: root, commit: true).commit == nil)
     let transcript = root.appendingPathComponent("usage/codex/codex_one.json")
     try Data("hand edited".utf8).write(to: transcript)
     #expect(throws: (any Error).self) { try Archive.save([session], to: root) }
@@ -85,7 +105,7 @@ func testDirectory() throws -> URL {
     let recent = Session(id: "new:session", source: "codex", title: "最近 | [会话]\n<img>", project: "/work/示例项目", created: time, usage: [usage])
     let older = Session(id: "older", source: "codex", title: "旧会话", created: time - 1000)
 
-    #expect(try Archive.save([older, recent], to: root).commit != nil)
+    #expect(try Archive.save([older, recent], to: root, commit: true).commit != nil)
     let report = try git(root, ["show", "HEAD:README.md"])
     #expect(report.contains("估算总成本 | $6.00 | 1/1 条用量已定价"))
     #expect(report.contains("总 Token | 1,000,000 | 1 个会话缺少用量"))
@@ -102,11 +122,11 @@ func testDirectory() throws -> URL {
     let activityCells = try xml.nodes(forXPath: "//*[local-name()='rect'][*[local-name()='title']]/@fill").compactMap(\.stringValue)
     #expect(activityCells.filter { $0 == "#9be9a8" }.count == 1)
     #expect((365...366).contains(activityCells.count))
-    #expect(try Archive.save([recent, older], to: root).commit == nil)
+    #expect(try Archive.save([recent, older], to: root, commit: true).commit == nil)
 
     var updated = recent; updated.title = "更新标题"
     let prices = [usage.model: Price(input: 1, output: 1)]
-    #expect(try Archive.save([updated, older], to: root, prices: prices).commit != nil)
+    #expect(try Archive.save([updated, older], to: root, prices: prices, commit: true).commit != nil)
     let refreshed = try git(root, ["show", "HEAD:README.md"])
     #expect(refreshed.contains("更新标题"))
     #expect(refreshed.contains("估算总成本 | $1.00 |"))
@@ -125,7 +145,7 @@ func testDirectory() throws -> URL {
     #expect(try String(contentsOf: readme, encoding: .utf8) == original)
     try git(root, ["add", "README.md"]); try git(root, ["commit", "-m", "docs: add repository readme"])
     var session = Session(id: "one", source: "codex", title: "一条会话")
-    _ = try Archive.save([session], to: root)
+    _ = try Archive.save([session], to: root, commit: true)
     let withReport = try String(contentsOf: readme, encoding: .utf8)
     #expect(withReport.hasPrefix(original))
     #expect(withReport.contains("Ragdoll 活动概览"))
@@ -171,11 +191,11 @@ func testDirectory() throws -> URL {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     let session = Session(id: "one", source: "codex", title: "One")
-    _ = try Archive.save([session], to: root)
+    _ = try Archive.save([session], to: root, commit: true)
     let path = "usage/codex/one.json", url = root.appendingPathComponent(path)
     let original = try Data(contentsOf: url)
     try Data("external staged edit".utf8).write(to: url); try git(root, ["add", "--", path]); try original.write(to: url)
-    #expect(throws: (any Error).self) { try Archive.save([session], to: root) }
+    #expect(throws: (any Error).self) { try Archive.save([session], to: root, commit: true) }
     #expect(try git(root, ["show", ":\(path)"]) == "external staged edit")
     #expect(try Data(contentsOf: url) == original)
 }
@@ -185,11 +205,11 @@ func testDirectory() throws -> URL {
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     var active = Session(id: "active", source: "codex", title: "Active")
     let excluded = Session(id: "excluded", source: "codex", title: "Excluded")
-    _ = try Archive.save([active, excluded], to: root)
+    _ = try Archive.save([active, excluded], to: root, commit: true)
     let path = "usage/codex/excluded.json"
     try Data("keep staged".utf8).write(to: root.appendingPathComponent(path)); try git(root, ["add", "--", path])
     active.usage.append(Usage(time: 1, model: "test", input: 3, output: 4))
-    _ = try Archive.save([active], to: root)
+    _ = try Archive.save([active], to: root, commit: true)
     #expect(try git(root, ["diff", "--cached", "--name-only"]) == path)
     #expect(try git(root, ["show", ":\(path)"]) == "keep staged")
     #expect(try !git(root, ["show", "HEAD:README.md"]).contains("Excluded"))
@@ -199,6 +219,6 @@ func testDirectory() throws -> URL {
     let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
     try git(root, ["init"]); try git(root, ["config", "user.name", "Ragdoll Tests"]); try git(root, ["config", "user.email", "tests@localhost"])
     let sessions = (0..<1500).map { Session(id: String(repeating: "a", count: 180) + String($0), source: "codex", title: "History \($0)") }
-    #expect(try Archive.save(sessions, to: root).commit != nil)
+    #expect(try Archive.save(sessions, to: root, commit: true).commit != nil)
     #expect(try git(root, ["ls-tree", "-r", "--name-only", "HEAD"]).components(separatedBy: .newlines).count == 1504)
 }

@@ -604,3 +604,22 @@
 - **Git 提交**：归档 `33c05ae351ccad0215d578e5ee6cd83664824e77 chore(archive): retain only session token usage` 已推送；源码记录 `0b1481ed258c01bdf8fe9b999517d33499a65297 docs(archive): record token-only storage cleanup` 已普通推送至 `origin/main`，本条由后续文档提交补记。
 
 ---
+
+## [2026-11-27 18:30] 用量归档改为手动提交与推送
+
+- **需求/问题描述**：
+  > 用量归档仓库每天提交次数过多，改为自动写入文件，由用户手动触发 commit 和 push。
+- **实际实现的功能与改动**：
+  - 默认归档只写会话 Token JSON、清单、README 活动报告与热力图，不暂存、不提交、不推送；自动写入继续保留 30 秒防抖与最长 5 分钟合并，未提交文件仍可在重启后恢复。
+  - 设置页与文件菜单增加“提交并推送”，先保存最新数据，再仅提交应用管理的文件并普通推送；未设置远端时显示“提交用量”，只创建本地提交。保存远端配置不触发发布，无变化时沿用已有提交。
+  - 移除前后台自动推送及自动重试；后台手动请求绑定当时的归档目录与远端，只消费一次，旧 pending 和旧请求文件不触发发布。失败保留本地提交，由用户再次手动重试；外部暂存、人工编辑和目录锁保护保留。
+  - 新回归先确认旧行为失败；Swift 全套报告 70 项通过（13.732 秒，4 项条件检查跳过），最终前后台 3 项复核通过（3.371 秒）；TypeScript、runtime 构建及允许 Node 23 项通过（3 项跳过）。真实本地 Git 远端覆盖首次与累积提交、无变化、推送失败后重启不重试及手动重试。
+  - 原证书签名 release、深度校验与包内 usage-only 自检通过，已更新并启动 `dist/Ragdoll.app`。真实用量文件已自动更新，HEAD 保持 `788a162`、提交数 492、暂存区为空；没有为验证提交或推送真实用量。未运行 Claude 接入测试，未截图。
+- **涉及文件**：
+  - `Sources/RagdollCore/Archive.swift`、`ArchiveSync.swift`、`BackgroundService.swift`
+  - `Sources/Ragdoll/AppModel.swift`、`SettingsView.swift`、`RagdollApp.swift`
+  - `Tests/RagdollCoreTests/StoreArchiveTests.swift`、`ArchiveSyncTests.swift`、`BackgroundServiceTests.swift`、`UsageOnlyTests.swift`、`Tests/RagdollTests/ManualArchiveTests.swift`
+  - `README.md`、`docs/USAGE.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md`、`memory/`
+- **Git 提交**：待提交
+
+---

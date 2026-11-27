@@ -75,35 +75,63 @@ import Darwin
     try store.saveSettings(settings)
     let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let executable = project.appendingPathComponent(".build/debug/RagdollService")
-    let process = Process(); process.executableURL = executable; process.arguments = ["--data-dir", root.path, "--once"]
-    process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
-    try process.run()
-    let deadline = Date().addingTimeInterval(20)
-    while process.isRunning && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
-    if process.isRunning { process.terminate(); Issue.record("独立服务未在期限内完成"); return }
-    #expect(process.terminationStatus == 0)
+    func runService() async throws -> Int32 {
+        let process = Process(); process.executableURL = executable; process.arguments = ["--data-dir", root.path, "--once"]
+        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+        try process.run(); defer { if process.isRunning { process.terminate(); process.waitUntilExit() } }
+        let deadline = Date().addingTimeInterval(20)
+        while process.isRunning && Date() < deadline { try await Task.sleep(for: .milliseconds(50)) }
+        guard !process.isRunning else { throw NSError(domain: "独立服务未在期限内完成", code: 1) }
+        return process.terminationStatus
+    }
+    try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"))
+    try Data("old-request".utf8).write(to: root.appendingPathComponent("service-push-request"))
+    #expect(try await runService() == 0)
     #expect(try store.list(query: "SERVICE_NATIVE_1729").count == 1)
     let restoredStore = try Store(path: root.appendingPathComponent("restored.sqlite").path)
     #expect(try Archive.restore(from: archive, into: restoredStore) == 1)
     #expect(try restoredStore.list(query: "SERVICE_NATIVE_1729").count == 1)
-    #expect(try git(archive, ["log", "-1", "--format=%s"]) == "chore(archive): sync session usage")
+    #expect(throws: (any Error).self) { try git(archive, ["rev-parse", "--verify", "HEAD"]) }
+    #expect(try git(archive, ["diff", "--cached", "--name-only"]).isEmpty)
     #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
+    try BackgroundService.requestPublish(root: root, settings: settings)
+    #expect(try await runService() == 0)
     let head = try git(archive, ["rev-parse", "HEAD"])
+    #expect(try git(archive, ["rev-list", "--count", "HEAD"]) == "1")
+    #expect(FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("service-publish-request.json").path))
+    try git(root, ["init", "--bare", remote.path])
+    #expect(try await runService() == 0)
+    #expect(throws: (any Error).self) { try git(remote, ["rev-parse", "--verify", "refs/heads/archive"]) }
+    #expect(try git(archive, ["rev-parse", "HEAD"]) == head)
+    try BackgroundService.requestPublish(root: root, settings: settings)
+    #expect(try await runService() == 0)
+    #expect(try git(archive, ["rev-parse", "HEAD"]) == head)
+    #expect(try git(remote, ["rev-parse", "refs/heads/archive"]) == head)
+    #expect(try git(remote, ["show", "refs/heads/archive:README.md"]).contains("Ragdoll 活动概览"))
+    #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
     let transcript = archive.appendingPathComponent("README.md")
     try Data("hand edited".utf8).write(to: transcript)
-    try git(root, ["init", "--bare", remote.path])
-    let retry = Process(); retry.executableURL = executable; retry.arguments = ["--data-dir", root.path, "--once"]
-    retry.standardOutput = FileHandle.nullDevice; retry.standardError = FileHandle.nullDevice
-    try retry.run()
-    let retryDeadline = Date().addingTimeInterval(20)
-    while retry.isRunning && Date() < retryDeadline { try await Task.sleep(for: .milliseconds(50)) }
-    if retry.isRunning { retry.terminate(); Issue.record("服务重启未完成"); return }
-    #expect(retry.terminationStatus == 1)
+    #expect(try await runService() == 1)
     #expect(try git(archive, ["rev-parse", "HEAD"]) == head)
     #expect(try git(remote, ["rev-parse", "refs/heads/archive"]) == head)
     #expect(try git(remote, ["show", "refs/heads/archive:README.md"]).contains("Ragdoll 活动概览"))
     #expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path))
     #expect(try String(contentsOf: transcript, encoding: .utf8) == "hand edited")
+}
+
+@Test func backgroundPublishRequestsAreConsumedOnceAndBoundToTheirDestination() throws {
+    let root = try testDirectory(); defer { try? FileManager.default.removeItem(at: root) }
+    var settings = Settings(); settings.archivePath = root.appendingPathComponent("archive").path
+    settings.archiveRemote = ArchiveRemote(remote: "origin", branch: "archive")
+    #expect(try !BackgroundService.takePublishRequest(root: root, settings: settings))
+    try BackgroundService.requestPublish(root: root, settings: settings)
+    #expect(try BackgroundService.takePublishRequest(root: root, settings: settings))
+    #expect(try !BackgroundService.takePublishRequest(root: root, settings: settings))
+    try BackgroundService.requestPublish(root: root, settings: settings)
+    settings.archiveRemote = ArchiveRemote(remote: "origin", branch: "other")
+    #expect(throws: (any Error).self) { try BackgroundService.takePublishRequest(root: root, settings: settings) }
+    #expect(try !BackgroundService.takePublishRequest(root: root, settings: settings))
 }
 
 @Test(arguments: ["runtime", "index"]) func backgroundServiceExitsOnFatalDependencyFailure(_ kind: String) async throws {

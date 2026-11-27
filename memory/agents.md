@@ -1,6 +1,6 @@
 # 开发环境
 
-- 当前任务（2026-11-26）：已清理 `Ragdoll_sync` 非 Token 用量文件及旧历史，并压缩 SQLite、移出旧迁移恢复副本；使用隔离 Git 克隆、git-filter-repo、标准 SQLite backup/VACUUM、文件摘要与真实归档恢复验证。只调整归档、应用数据库和记录，不修改原始工具会话，不新增截图或运行 Claude 测试。
+- 当前任务（2026-11-27）：用量归档继续自动写文件，改为用户手动触发 commit 和 push；检查 Swift 归档、AppModel、后台服务与设置，使用真实 Git 仓库及独立进程回归，不新增截图或运行 Claude 测试。源码仓库开发提交规则不变。
 
 - 当前代理：Codex；单代理执行，详见 `memory/progress.md`。
 - Swift 6.1、SwiftUI、macOS 15+、GRDB；TypeScript 助手使用 Node。

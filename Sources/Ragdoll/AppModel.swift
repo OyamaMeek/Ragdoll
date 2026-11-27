@@ -45,7 +45,6 @@ final class AppModel: ObservableObject {
     private var dirtyGeneration = 0
     private var initialized = false
     private var lastRefresh = Date.distantPast
-    private var lastPushAttempt = Date.distantPast
 
     init(root: URL? = nil) {
         self.root = root ?? ProcessInfo.processInfo.environment["RAGDOLL_DATA_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Ragdoll")
@@ -54,6 +53,7 @@ final class AppModel: ObservableObject {
             let store = try Store(path: self.root.appendingPathComponent("index.sqlite").path)
             let settings = try store.settings(), sessions = try store.list()
             self.store = store; self.settings = settings; self.sessions = sessions
+            if settings.archiveRemote != nil { syncStatus = "等待手动提交并推送" }
             codexMessageSessions = CodexScheduledMessage.eligibleSessions(sessions)
         } catch { store = nil; self.error = error.localizedDescription }
         do { codexAutoStates = try CodexAutoActivation.load(root: self.root) }
@@ -214,7 +214,6 @@ final class AppModel: ObservableObject {
                     do {
                         let background = try BackgroundService.isRunning(root: self.root)
                         if !background, Date().timeIntervalSince(self.lastRefresh) >= 60 { await self.refresh() }
-                        if self.settings.archiveRemote != nil, !background, !self.archiving, FileManager.default.fileExists(atPath: self.root.appendingPathComponent("sync-pending").path), Date().timeIntervalSince(self.lastPushAttempt) >= 60 { await self.retryPush() }
                     } catch { self.error = error.localizedDescription }
                 }
             }
@@ -291,54 +290,42 @@ final class AppModel: ObservableObject {
         let delay = max(0, min(30, 300 - Date().timeIntervalSince(dirtySince)))
         archiveTask = Task { do { try await Task.sleep(for: .seconds(delay)); await archiveNow() } catch {} }
     }
-    func archiveNow() async {
+    func archiveNow(commitAndPush: Bool = false) async {
         guard archiveLoaded, let store, !settings.archivePath.isEmpty, !archiving, !scanning else { return }
-        do { if try BackgroundService.isRunning(root: root) { try BackgroundService.request(root: root); archiveStatus = "已请求后台归档"; return } }
+        do { if try BackgroundService.isRunning(root: root) {
+            if commitAndPush { try BackgroundService.requestPublish(root: root, settings: settings) }
+            else { try BackgroundService.request(root: root) }
+            archiveStatus = commitAndPush ? "已请求后台提交并推送" : "已请求后台保存用量"; return
+        } }
         catch { self.error = error.localizedDescription; return }
-        archiving = true; archiveStatus = "正在保存用量并提交…"
+        archiving = true; archiveStatus = commitAndPush ? "正在保存用量并提交…" : "正在保存用量文件…"
         let generation = dirtyGeneration
         let path = settings.archivePath, excluded = settings.excludedProjects, roots = settings.locations.map(\.path), remote = settings.archiveRemote, prices = settings.prices
         do {
             let lease = try ServiceLease(root: root)
             defer { withExtendedLifetime(lease) {} }
             let result = try await Task.detached(priority: .utility) {
-                try Archive.save(store.list().filter { !excluded.contains($0.project) }, to: URL(fileURLWithPath: path), sourceRoots: roots, prices: prices)
+                try Archive.save(store.list().filter { !excluded.contains($0.project) }, to: URL(fileURLWithPath: path), sourceRoots: roots, prices: prices, commit: commitAndPush)
             }.value
-            archiveStatus = result.commit.map { "已保存并提交 · \($0) · \(result.files) 个文件" } ?? "用量归档已是最新，无需提交"
+            archiveStatus = result.commit.map { "已保存并提交 · \($0)" } ?? (commitAndPush ? "用量归档已是最新，无需提交" : "用量文件已保存 · \(result.files) 个文件更新，提交由你手动触发")
             lastArchive = Date(); if generation == dirtyGeneration { dirtySince = nil }
-            if let remote, settings.archivePath == path, settings.archiveRemote == remote {
+            if commitAndPush, let remote, settings.archivePath == path, settings.archiveRemote == remote {
                 try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic)
-                lastPushAttempt = Date(); syncStatus = "正在推送"
+                syncStatus = "正在推送"
                 do {
                     _ = try await Task.detached(priority: .utility) { try ArchiveSync.push(root: URL(fileURLWithPath: path), remote: remote.remote, branch: remote.branch) }.value
                     if settings.archivePath == path && settings.archiveRemote == remote {
                         try FileManager.default.removeItem(at: root.appendingPathComponent("sync-pending")); syncStatus = "已推送到 \(remote.remote)/\(remote.branch)"
                     }
-                } catch { syncStatus = "推送待重试：\(error.localizedDescription)" }
-            } else { syncStatus = settings.archiveRemote == nil ? "未启用远端推送" : "配置已变化，等待按当前配置推送" }
+                } catch { syncStatus = "推送未完成，请手动重试：\(error.localizedDescription)" }
+            } else if commitAndPush { syncStatus = remote == nil ? "未配置远端，已完成本地提交" : "配置已变化，请手动重新提交并推送" }
         } catch { archiveStatus = "归档未完成：\(error.localizedDescription)"; self.error = error.localizedDescription }
         archiving = false
         if generation != dirtyGeneration { scheduleArchive(markDirty: false) }
     }
     func configureArchiveRemote(_ remote: ArchiveRemote?) {
         settings.archiveRemote = remote; persistSettings()
-        if remote != nil { scheduleArchive(); Task { await archiveNow() } }
-        else { syncStatus = "未启用远端推送" }
-    }
-    func retryPush() async {
-        guard archiveLoaded, let remote = settings.archiveRemote, !settings.archivePath.isEmpty, !scanning, !archiving else { return }
-        let path = settings.archivePath
-        do {
-            if try BackgroundService.isRunning(root: root) { try BackgroundService.requestPush(root: root); return }
-            archiving = true; defer { archiving = false }
-            let lease = try ServiceLease(root: root); defer { withExtendedLifetime(lease) {} }
-            try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic)
-            lastPushAttempt = Date(); syncStatus = "正在重试推送"
-            _ = try await Task.detached(priority: .utility) { try ArchiveSync.push(root: URL(fileURLWithPath: path), remote: remote.remote, branch: remote.branch) }.value
-            if settings.archivePath == path && settings.archiveRemote == remote {
-                try FileManager.default.removeItem(at: root.appendingPathComponent("sync-pending")); syncStatus = "已推送到 \(remote.remote)/\(remote.branch)"
-            }
-        } catch { syncStatus = "推送待重试：\(error.localizedDescription)" }
+        syncStatus = remote == nil ? "未启用远端推送" : "远端已保存，等待手动提交并推送"
     }
     func pollBackground() {
         guard !scanning, !archiving else { return }

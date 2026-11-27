@@ -6,8 +6,7 @@ public enum ArchiveSync {
         try validate(remote: remote, branch: branch)
         _ = try run(root, ["check-ref-format", "refs/heads/\(branch)"], timeout: 10)
         let destination = try redacted(pushDestination(root: root, remote: remote, timeout: 10))
-        let files = try run(root, ["ls-tree", "-r", "--name-only", "HEAD"], timeout: 10).split(separator: "\n").count
-        return "目标：\(destination)\n分支：\(branch)\n将上传当前分支的完整历史，最新提交包含 \(files) 个文件。"
+        return "目标：\(destination)\n分支：\(branch)\n手动提交并推送时，将上传当前分支的完整历史。"
     }
     @discardableResult public static func push(root: URL, remote: String, branch: String, timeout: Double = 90) throws -> String {
         try validate(remote: remote, branch: branch)

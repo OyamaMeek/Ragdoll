@@ -36,6 +36,11 @@ public struct ServiceStatus: Codable, Sendable {
     public init() {}
 }
 
+private struct ArchivePublishRequest: Codable {
+    var archivePath: String
+    var remote: ArchiveRemote?
+}
+
 public enum BackgroundService {
     public static func isRunning(root: URL) throws -> Bool {
         do { let lease = try ServiceLease(root: root); withExtendedLifetime(lease) {}; return false }
@@ -48,9 +53,19 @@ public enum BackgroundService {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         try Data(UUID().uuidString.utf8).write(to: root.appendingPathComponent("service-request"), options: .atomic)
     }
-    public static func requestPush(root: URL) throws {
-        try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic)
-        try Data(UUID().uuidString.utf8).write(to: root.appendingPathComponent("service-push-request"), options: .atomic)
+    public static func requestPublish(root: URL, settings: Settings) throws {
+        let request = ArchivePublishRequest(archivePath: settings.archivePath, remote: settings.archiveRemote)
+        try JSONEncoder().encode(request).write(to: root.appendingPathComponent("service-publish-request.json"), options: .atomic)
+    }
+    static func takePublishRequest(root: URL, settings: Settings) throws -> Bool {
+        let path = root.appendingPathComponent("service-publish-request.json")
+        guard FileManager.default.fileExists(atPath: path.path) else { return false }
+        let request = try JSONDecoder().decode(ArchivePublishRequest.self, from: Data(contentsOf: path))
+        try FileManager.default.removeItem(at: path)
+        guard request.archivePath == settings.archivePath, request.remote == settings.archiveRemote else {
+            throw NSError(domain: "Ragdoll.Service", code: 3, userInfo: [NSLocalizedDescriptionKey: "归档配置已变化，请手动重新提交并推送"])
+        }
+        return true
     }
     public static func status(root: URL) throws -> ServiceStatus? {
         let path = root.appendingPathComponent("service-status.json")
@@ -69,7 +84,6 @@ public actor BackgroundWorker {
     private var generation = 0
     private var needsScan = true
     private var fatalFailure: String?
-    private var lastPush = Date.distantPast
 
     public init(root: URL) throws {
         self.root = root
@@ -99,7 +113,7 @@ public actor BackgroundWorker {
         try await bridge.start(dataDirectory: root)
         let initial = try await bridge.request("initialize")
         let defaultLocations = (try? initial["locations"].decode([Location].self)) ?? []
-        var lastScan = Date.distantPast, lastArchiveAttempt = Date.distantPast, lastRequest: Data?, lastPushRequest: Data?, lastSettings: Data?, lastVersion: Int?
+        var lastScan = Date.distantPast, lastArchiveAttempt = Date.distantPast, lastRequest: Data?, lastSettings: Data?, lastVersion: Int?
         var loadedArchive: String?
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         repeat {
@@ -124,6 +138,7 @@ public actor BackgroundWorker {
                 }
                 if storedSettings.applyDefaultLocations(defaultLocations) { try store.saveSettings(storedSettings) }
                 let settings = storedSettings
+                if settings.archiveRemote != nil, state.sync == "未启用远端推送" { state.sync = "等待手动提交并推送" }
                 let settingsData = try encoder.encode(settings)
                 if settingsData != lastSettings { lastSettings = settingsData; needsScan = true; try markDirty() }
                 let version = try store.dataVersion()
@@ -132,10 +147,8 @@ public actor BackgroundWorker {
                 let request = FileManager.default.fileExists(atPath: requestPath.path) ? try Data(contentsOf: requestPath) : nil
                 let requested = request != lastRequest
                 if requested { lastRequest = request; needsScan = true; try markDirty() }
-                let pushPath = root.appendingPathComponent("service-push-request")
-                let pushRequest = FileManager.default.fileExists(atPath: pushPath.path) ? try Data(contentsOf: pushPath) : nil
-                if pushRequest != lastPushRequest { lastPushRequest = pushRequest; lastPush = .distantPast }
-                try await pushPending(settings)
+                let publishRequested = try BackgroundService.takePublishRequest(root: root, settings: settings)
+                if publishRequested { needsScan = true }
                 if needsScan || Date().timeIntervalSince(lastScan) >= 60 {
                     needsScan = false; state.scan = "正在扫描"; try publish()
                     let result = try await bridge.request("scan", ["locations": try .encode(settings.locations)], timeout: 600)
@@ -143,21 +156,20 @@ public actor BackgroundWorker {
                     state.scan = "扫描完成 · \(result["count"].text) 个变更"; lastScan = Date()
                 }
                 let due = dirtySince.map { Date().timeIntervalSince($0) >= 300 || Date().timeIntervalSince(lastDirty ?? $0) >= 30 } ?? false
-                if !settings.archivePath.isEmpty && (once || requested || (due && Date().timeIntervalSince(lastArchiveAttempt) >= 30)) {
+                if !settings.archivePath.isEmpty && (once || requested || publishRequested || (due && Date().timeIntervalSince(lastArchiveAttempt) >= 30)) {
                     lastArchiveAttempt = Date()
                     let current = generation
-                    state.archive = "正在保存并提交"; try publish()
+                    state.archive = publishRequested ? "正在保存并提交" : "正在保存用量文件"; try publish()
                     let store = self.store
                     let result = try await Task.detached(priority: .utility) {
                         let sessions = try store.list().filter { !settings.excludedProjects.contains($0.project) }
-                        return try Archive.save(sessions, to: URL(fileURLWithPath: settings.archivePath), sourceRoots: settings.locations.map(\.path), prices: settings.prices)
+                        return try Archive.save(sessions, to: URL(fileURLWithPath: settings.archivePath), sourceRoots: settings.locations.map(\.path), prices: settings.prices, commit: publishRequested)
                     }.value
-                    state.archive = result.commit.map { "本地归档已提交 · \($0)" } ?? "本地归档已是最新"
+                    state.archive = result.commit.map { "本地归档已提交 · \($0)" } ?? (publishRequested ? "本地归档已是最新，无需提交" : "用量文件已保存，提交由你手动触发")
                     state.lastArchive = Date()
                     if current == generation { dirtySince = nil; try FileManager.default.removeItem(at: root.appendingPathComponent("archive-dirty")) }
-                    if settings.archiveRemote != nil { try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic); lastPush = .distantPast }
                 }
-                try await pushPending(settings)
+                if publishRequested { try await pushArchive(settings) }
                 if settings.archiveRemote == nil { state.sync = "未启用远端推送" }
                 try publish()
             } catch {
@@ -169,14 +181,14 @@ public actor BackgroundWorker {
         } while !Task.isCancelled
         await bridge.close()
     }
-    private func pushPending(_ settings: Settings) async throws {
-        guard let remote = settings.archiveRemote, !settings.archivePath.isEmpty,
-              FileManager.default.fileExists(atPath: root.appendingPathComponent("sync-pending").path), Date().timeIntervalSince(lastPush) >= 60 else { return }
-        lastPush = Date(); state.sync = "正在推送"; try publish()
+    private func pushArchive(_ settings: Settings) async throws {
+        guard let remote = settings.archiveRemote else { return }
+        try Data("pending".utf8).write(to: root.appendingPathComponent("sync-pending"), options: .atomic)
+        state.sync = "正在推送"; try publish()
         do {
             _ = try await Task.detached(priority: .utility) { try ArchiveSync.push(root: URL(fileURLWithPath: settings.archivePath), remote: remote.remote, branch: remote.branch) }.value
             try FileManager.default.removeItem(at: root.appendingPathComponent("sync-pending"))
             state.sync = "已推送到 \(remote.remote)/\(remote.branch)"
-        } catch { state.sync = "推送待重试：\(error.localizedDescription)" }
+        } catch { state.sync = "推送未完成，请手动重试：\(error.localizedDescription)" }
     }
 }

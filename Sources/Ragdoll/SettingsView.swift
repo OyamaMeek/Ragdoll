@@ -77,7 +77,7 @@ struct SettingsView: View {
             Card {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Git 用量自动备份").font(.headline)
-                    Text("启动时先读取仓库中的历史用量，再检查本机新增记录。保存每个会话的 Token 明细和活动报告，自动创建本地提交。").foregroundStyle(.secondary)
+                    Text("启动时先读取仓库中的历史用量，再检查本机新增记录。自动写入 Token 明细和活动报告，由你手动提交并推送。").foregroundStyle(.secondary)
                     HStack {
                         Text(model.settings.archivePath.isEmpty ? "尚未选择目录" : model.settings.archivePath).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
                         Spacer(); Button("选择专用仓库…") { model.chooseArchive() }.disabled(model.scanning || model.archiving || model.loadingArchive)
@@ -87,7 +87,8 @@ struct SettingsView: View {
                         if let date = model.lastArchive { Text("上次完成：\(date.formatted())").font(.caption).foregroundStyle(.secondary) }
                         Spacer()
                         if model.archiving { ProgressView().controlSize(.small) }
-                        Button("立即备份用量") { Task { await model.archiveNow() } }.buttonStyle(.borderedProminent).disabled(model.archiving || model.settings.archivePath.isEmpty)
+                        Button("立即备份用量") { Task { await model.archiveNow() } }.disabled(!model.archiveLoaded || model.scanning || model.archiving)
+                        Button(model.settings.archiveRemote == nil ? "提交用量" : "提交并推送") { Task { await model.archiveNow(commitAndPush: true) } }.buttonStyle(.borderedProminent).disabled(!model.archiveLoaded || model.scanning || model.archiving)
                     }
                     Text("自动保存采用 30 秒防抖，最长合并 5 分钟；手工修改会阻止覆盖。旧版本的会话归档及 Git 历史继续保留。首次迁移旧索引会生成 index.sqlite.before-usage 恢复副本，该副本仍包含正文并占用空间，确认用量完整后可手动移走或删除。").font(.caption).foregroundStyle(.secondary)
                 }
@@ -95,7 +96,7 @@ struct SettingsView: View {
             Card {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("远端推送").font(.headline)
-                    Text("推送包含所选分支的全部历史；沿用旧仓库时，历史可能含正文及附件。认证沿用系统 Git，失败保留本地提交并自动重试。").font(.caption).foregroundStyle(.secondary)
+                    Text("点击“提交并推送”时上传所选分支的全部历史，旧历史可能含正文及附件。认证沿用系统 Git，失败保留本地提交，再次点击可手动重试；后台不会自动推送。").font(.caption).foregroundStyle(.secondary)
                     HStack { TextField("远端名称", text: $remoteName); TextField("目标分支", text: $remoteBranch) }.textFieldStyle(.roundedBorder)
                     if !remotePreview.isEmpty { Text(remotePreview).font(.caption).textSelection(.enabled) }
                     Text(model.syncStatus).font(.caption).textSelection(.enabled)
@@ -108,15 +109,15 @@ struct SettingsView: View {
                                 remotePreview = preview; checkedRemote = draft
                             } catch { checkedRemote = nil; model.error = error.localizedDescription } }
                         }.disabled(model.settings.archivePath.isEmpty)
-                        Button("保存并启用自动推送") { model.configureArchiveRemote(ArchiveRemote(remote: remoteName, branch: remoteBranch)) }.disabled(checkedRemote != ArchiveRemote(remote: remoteName, branch: remoteBranch))
-                        if model.settings.archiveRemote != nil { Button("停用推送") { model.configureArchiveRemote(nil) }; Button("立即重试") { Task { await model.retryPush() } } }
+                        Button("保存推送目标") { model.configureArchiveRemote(ArchiveRemote(remote: remoteName, branch: remoteBranch)) }.disabled(model.archiving || checkedRemote != ArchiveRemote(remote: remoteName, branch: remoteBranch))
+                        if model.settings.archiveRemote != nil { Button("移除推送目标") { model.configureArchiveRemote(nil) }.disabled(model.archiving) }
                     }
                 }
             }
             Card {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("独立后台服务").font(.headline)
-                    Text("当前用户登录期间持续扫描、备份和推送用量，退出 Ragdoll 后继续运行。需要有效的 Apple 签名及相关目录访问权限。").font(.caption).foregroundStyle(.secondary)
+                    Text("当前用户登录期间持续扫描并保存用量文件，退出 Ragdoll 后继续运行。提交和推送仅处理手动请求。需要有效的 Apple 签名及相关目录访问权限。").font(.caption).foregroundStyle(.secondary)
                     Text(model.backgroundStatus).font(.caption)
                     HStack {
                         Button(model.settings.backgroundEnabled == true ? "停用后台服务" : "启用后台服务") { Task { await model.setBackground(model.settings.backgroundEnabled != true) } }

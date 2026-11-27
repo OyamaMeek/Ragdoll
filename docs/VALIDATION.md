@@ -1,5 +1,12 @@
 # 验证记录
 
+## 2026-11-27 用量归档手动提交与推送
+
+- 新回归先确认连续自动保存会生成 Git 提交，前台会推送旧 pending，后台会自动登记推送。修改后自动保存只更新用量、报告与清单，HEAD、暂存内容和远端引用保持不变；未提交文件可恢复。
+- 真实本地 Git 仓库覆盖累积用量手动提交、首次无远端提交、无变化重复操作、保留无关暂存、拒绝人工编辑、远端分歧和超时。AppModel 与独立后台进程覆盖手动发布、失败后重启不自动重试、再次手动重试成功、请求只消费一次及目标变化拒绝。
+- Swift 全套报告 70 项通过（13.732 秒，4 项条件检查跳过）；TypeScript 严格检查与 runtime 构建通过；允许的 Node 测试 23 项通过、3 项真实请求检查跳过。未运行 Claude 接入测试，未执行截图或视觉检查。
+- 使用原 Apple Development 证书完成 release、深度签名校验和包内 usage-only 自检；最终前后台 3 项复核通过（3.371 秒）。新版应用与包内 Node 已启动；真实归档的报告、清单和用量文件自动更新，HEAD 保持 `788a162`、提交数保持 492、暂存区为空。真实用量未手动提交或推送。
+
 ## 2026-11-24 支持识别 Antigravity 会话
 
 - 新增 `antigravity` 来源，扫描 `ANTIGRAVITY_HOME` 或 `~/.gemini` 下的 `antigravity`、`antigravity-insiders`、`antigravity-cli` 及直接指定的数据目录；解析 `conversations/<id>.db`、`conversation_summaries.db` 与 `brain/<id>/.system_generated/logs/transcript_full.jsonl`，提取会话名称、工作区目录、父会话 ID、模型与输入/输出/缓存读取/缓存写入明细，按响应 ID 与步骤序号去重，输出不含正文和附件引用。

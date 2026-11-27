@@ -14,6 +14,7 @@ struct RagdollApp: App {
             CommandGroup(after: .newItem) {
                 Button("刷新用量") { Task { await model.refresh() } }.keyboardShortcut("r")
                 Button("立即备份用量") { Task { await model.archiveNow() } }.keyboardShortcut("s", modifiers: [.command, .shift])
+                Button(model.settings.archiveRemote == nil ? "提交用量" : "提交并推送") { Task { await model.archiveNow(commitAndPush: true) } }.disabled(!model.archiveLoaded || model.scanning || model.archiving)
             }
         }
     }
