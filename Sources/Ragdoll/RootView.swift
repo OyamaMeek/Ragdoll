@@ -20,7 +20,7 @@ struct RootView: View {
                     Text("设置 Git 用量仓库").font(.largeTitle.bold())
                     Text("请选择保存会话 Token 用量的专用 Git 仓库，也可以选择空目录创建仓库。\n应用先读取历史用量，再扫描本机新增记录。").multilineTextAlignment(.center).foregroundStyle(.secondary)
                     Button("选择或创建 Git 仓库…") { model.chooseArchive() }.buttonStyle(.borderedProminent).disabled(model.loadingArchive)
-                    Text("本地提交需要 Git 已配置姓名与邮箱；远端自动推送可在设置中配置。").font(.caption).foregroundStyle(.secondary)
+                    Text("本地提交需要 Git 已配置姓名与邮箱。远端可在设置中配置，再手动推送。").font(.caption).foregroundStyle(.secondary)
                 }.padding(40).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 NavigationSplitView {
@@ -49,7 +49,13 @@ struct RootView: View {
                         case .settings: SettingsView()
                         }
                     }.toolbar {
-                        ToolbarItem {
+                        ToolbarItemGroup {
+                            if (page ?? .home) == .home {
+                                Button(model.settings.archiveRemote == nil ? "提交用量" : "提交并推送") {
+                                    Task { await model.archiveNow(commitAndPush: true) }
+                                }
+                                .disabled(!model.archiveLoaded || model.scanning || model.archiving)
+                            }
                             if page == .accounts { EmptyView() }
                             else if model.scanning { ProgressView().controlSize(.small) }
                             else { Button { Task { await model.refresh() } } label: { Image(systemName: "arrow.clockwise") }.help("刷新本地用量").disabled(!model.ready) }
