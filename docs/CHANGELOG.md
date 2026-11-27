@@ -620,6 +620,6 @@
   - `Sources/Ragdoll/AppModel.swift`、`SettingsView.swift`、`RagdollApp.swift`
   - `Tests/RagdollCoreTests/StoreArchiveTests.swift`、`ArchiveSyncTests.swift`、`BackgroundServiceTests.swift`、`UsageOnlyTests.swift`、`Tests/RagdollTests/ManualArchiveTests.swift`
   - `README.md`、`docs/USAGE.md`、`docs/VALIDATION.md`、`docs/CHANGELOG.md`、`memory/`
-- **Git 提交**：待提交
+- **Git 提交**：源码 `ae1251c90538c905077f0976a7f83202ac3b227e feat(archive): publish usage only on manual request` 已普通推送至 `origin/main`，实际哈希由本次文档提交补记。用量归档未提交或推送。
 
 ---
